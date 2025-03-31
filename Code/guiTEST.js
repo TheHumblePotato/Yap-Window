@@ -524,10 +524,10 @@
 
   gui.innerHTML = `
 <div id="bookmarklet-gui-header">
-   <span>Yap Window</span>   
+   <span>Yap Window (Definitely not the April Fools Edition)</span>   
    <div class="button-group">
-      <button id="bookmarklet-minimize">−</button>
-      <button id="bookmarklet-fullscreen">⛶</button>
+      <button id="bookmarklet-minimize">⛶</button>
+      <button id="bookmarklet-fullscreen">−</button>
       <button id="bookmarklet-close">×</button>
    </div>
 </div>
