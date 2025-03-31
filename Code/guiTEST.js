@@ -524,11 +524,11 @@
 
   gui.innerHTML = `
 <div id="bookmarklet-gui-header">
-   <span>Yap Window</span>   
+   <span>Yap Window (April Fools Edition)</span>   
    <div class="button-group">
-      <button id="bookmarklet-minimize">−</button>
-      <button id="bookmarklet-fullscreen">⛶</button>
-      <button id="bookmarklet-close">×</button>
+      <button id="bookmarklet-minimize">⛶</button>
+      <button id="bookmarklet-fullscreen">-</button>
+      <button id="bookmarklet-close">◯</button>
    </div>
 </div>
 <div id="login-screen" class="screen hidden">
@@ -592,9 +592,9 @@
    <h2>Would you like to stay logged in?</h2>
    <h3>Any future logins on this site will automatically sign you into your account</h3>
    <div id="stay-login-buttons" style="justify-content: space-between; align-items: center;">
-      <button id="stay-yes" style="width: 20%">Yes</button>
-      <button id="stay-no" style="width: 20%">No</button>
-      <button id="stay-forget" style="width: 20%">Don't Bother Me</button>
+      <button id="stay-yes" style="width: 20%">Na</button>
+      <button id="stay-no" style="width: 20%">Ya</button>
+      <button id="stay-forget" style="width: 20%">Bother Me</button>
    </div>
 </div>
 <div id="main-screen" class="screen">
