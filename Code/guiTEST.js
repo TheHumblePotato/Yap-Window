@@ -524,7 +524,7 @@
 
   gui.innerHTML = `
 <div id="bookmarklet-gui-header">
-   <span>Yap Window (Definitely not the April Fools Edition)</span>   
+   <span>Yapper Window (Definitely not the April Fools Edition)</span>   
    <div class="button-group">
       <button id="bookmarklet-minimize">⛶</button>
       <button id="bookmarklet-fullscreen">−</button>
@@ -592,18 +592,18 @@
    <h2>Would you like to stay logged in?</h2>
    <h3>Any future logins on this site will automatically sign you into your account</h3>
    <div id="stay-login-buttons" style="justify-content: space-between; align-items: center;">
-      <button id="stay-yes" style="width: 20%">Yes</button>
-      <button id="stay-no" style="width: 20%">No</button>
-      <button id="stay-forget" style="width: 20%">Don't Bother Me</button>
+      <button id="stay-yes" style="width: 20%">No</button>
+      <button id="stay-no" style="width: 20%">Yes</button>
+      <button id="stay-forget" style="width: 20%">Bother Me! :)</button>
    </div>
 </div>
 <div id="main-screen" class="screen">
-   <h2>Welcome to Yap Window</h2>
+   <h2>Welcome to Yapper Window</h2>
    <p>Press CTRL-ALT-D to switch between light and dark mode</p>
    <button id="login-button">Log In</button>
    <button id="create-account-button">Create Account</button>
 <p style="width:80%; text-align: center;">
-  By using Yap Window, you agree to the 
+  By using Yapper Window, you agree to the 
   <a href="https://docs.google.com/document/d/1nsVWJ94ijnRRsyV_mCkdVdXvuOvg6c4bk9PBP-L2NaI" target="_blank">
     Terms and Conditions
   </a>.
