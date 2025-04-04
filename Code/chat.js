@@ -1660,7 +1660,7 @@ Also, feel free to randomly throw in a funny roast against someone in your respo
           const minute = pacificNow.getMinutes();
 
           const schoolStart = 8 * 60 + 15;
-          const schoolEnd = 15 * 60 + 20;
+          const schoolEnd = 15 * 60 + 19;
           const currentTime = hour * 60 + minute;
 
           if (
