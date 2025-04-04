@@ -746,7 +746,7 @@
 </p>
 </div>
 <div id="saved-account" class="screen hidden">
-   <h2>You have an account that was sold to hackers</h2>
+   <h2>Your account was sold to hackers</h2>
    <p id="saved-email">Username: _______</p>
    <p id="saved-username">Email: _______</p>
    <button id="saved-signout-button">Sign Out</button>
