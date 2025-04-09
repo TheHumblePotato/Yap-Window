@@ -1592,7 +1592,7 @@ ${chatHistory};
             await pushMessage("");
             await pushMessage("🏆 WEEKLY PRIZE 🏆");
             await pushMessage(
-              "The player in the #1 slot on 4/7/25 at 8:00 pm will:",
+              "The player in the #1 slot on the first day of the month at 8:00pm PST will:",
             );
             await pushMessage(
               "- Get to customize their message color for a month",
