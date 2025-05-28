@@ -14470,7 +14470,7 @@ Make sure to follow all the instructions while answering questions.
             Date: Date.now(),
           });
         }
-      } else if (pureMessage.trim().toLowerCase().startsWith("/shell") && channelName === "Shell" ) {
+      } else if (pureMessage.trim().toLowerCase().startsWith("/shell") && document.getElementById("channel-name") === "Shell" ) {
         console.log("/shell activated")
         const command = pureMessage.trim().slice(7);
         let noCommand = false;
