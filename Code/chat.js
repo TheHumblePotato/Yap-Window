@@ -1,4 +1,5 @@
 (async function () {
+  console.log("Loading z")
   var readMessages = {};
   var readAll = true;
   var isDark = false;
@@ -14470,6 +14471,7 @@ Make sure to follow all the instructions while answering questions.
           });
         }
       } else if (pureMessage.trim().toLowerCase().startsWith("/shell")) {
+        console.log("/shell activated")
         const command = pureMessage.trim().slice(7);
         let noCommand = false;
         let useSudo = false;
