@@ -11,10 +11,28 @@
     ADMIN: "[ADMIN]",
     SNAKE: "[Snake Game]",
     24: "[24]",
+    PRIME: "[Prime Bot]",
     ARCHFIEND: "[Archfiend Dice]",
     TIGGY: "[Tiggy]",
     TIGGYBOT: "[Tiggy Bot]",
+    TAM: "[Twelve Angry Men]",
+    J1: "[Foreman]",
+    J2: "[Juror 2]",
+    J3: "[Juror 3]",
+    J4: "[Juror 4]",
+    J5: "[Juror 5]",
+    J6: "[Juror 6]",
+    J7: "[Juror 7]",
+    J8: "[Juror 8]",
+    J9: "[Juror 9]",
+    J10: "[Juror 10]",
+    J11: "[Juror 11]",
+    J12: "[Juror 12]",
+    LOVE: "[Love Bot]",
+    CLICKER: "[Clicker Game]",
     JIMMY: "[Jimmy Bot]",
+    SHELL: "[Shell]",
+    TAU: "[Tau Game]",
   };
   const users = {};
   const email = auth.currentUser.email;
@@ -718,7 +736,22 @@
         "[Tiggy]",
         "[Tiggy Bot]",
         "[Twelve Angry Men]",
+        "[Foreman]",
+        "[Juror 2]",
+        "[Juror 3]",
+        "[Juror 4]",
+        "[Juror 5]",
+        "[Juror 6]",
+        "[Juror 7]",
+        "[Juror 8]",
+        "[Juror 9]",
+        "[Juror 10]",
+        "[Juror 11]",
+        "[Juror 12]",
+        "[Love Bot]",
+        "[Clicker Game]",
         "[Jimmy Bot]",
+        "[Shell]",
       ].includes(userEmail)
     )
       return userEmail;
@@ -11565,7 +11598,7 @@
   };
   let curTwentyFour = null;
 
-class Shell {
+  class Shell {
     constructor(db, auth) {
       this.db              = db;
       this.auth            = auth;
@@ -13069,6 +13102,33 @@ Make sure to follow all the instructions while answering questions.
           Message: `🎲 Coin flip result: ${result}`,
           Date: Date.now(),
         });
+      } else if (pureMessage.trim().toLowerCase().startsWith("/roll ")) {
+        const sides = parseInt(message.split(" ")[1]);
+
+        const userMessageRef = push(messagesRef);
+        await update(userMessageRef, {
+          User: email,
+          Message: message,
+          Date: Date.now(),
+        });
+
+        if (isNaN(sides) || sides < 1) {
+          const errorMessageRef = push(messagesRef);
+          await update(errorMessageRef, {
+            User: BOT_USERS.RNG,
+            Message: "Please specify a valid number of sides (e.g., /roll 6)",
+            Date: Date.now(),
+          });
+          return;
+        }
+
+        const result = Math.floor(Math.random() * sides) + 1;
+        const botMessageRef = push(messagesRef);
+        await update(botMessageRef, {
+          User: BOT_USERS.RNG,
+          Message: `🎲 Rolling a ${sides}-sided die: ${result}`,
+          Date: Date.now(),
+        });
       } else if (pureMessage.trim().toLowerCase().startsWith("/snake")) {
         const temp_email =
           typeof email !== "undefined"
@@ -13249,7 +13309,95 @@ Make sure to follow all the instructions while answering questions.
             });
           }
         }
-      } else if (pureMessage.trim().toLowerCase().startsWith("/roll ")) {
+      } else if (pureMessage.trim().toLowerCase().startsWith("/prime")) {
+        const args = pureMessage.trim().split(" ");
+        const userMessageRef = push(messagesRef);
+        await update(userMessageRef, {
+          User: email,
+          Message: pureMessage,
+          Date: Date.now(),
+        });
+
+        if (args[1] === "single") {
+          const number = parseInt(args[2], 10);
+          if (isNaN(number)) {
+            const errorMessageRef = push(messagesRef);
+            await update(errorMessageRef, {
+              User: "[Prime Bot]",
+              Message:
+                "Please provide a valid number for the single value check. Usage: /prime single <number>",
+              Date: Date.now(),
+            });
+          } else {
+            const isPrime = (n) => {
+              if (n <= 1) return false;
+              for (let i = 2; i * i <= n; i++) {
+                if (n % i === 0) return false;
+              }
+              return true;
+            };
+            const result = isPrime(number)
+              ? `${number} is a prime number.`
+              : `${number} is not a prime number.`;
+            const botMessageRef = push(messagesRef);
+            await update(botMessageRef, {
+              User: "[Prime Bot]",
+              Message: result,
+              Date: Date.now(),
+            });
+          }
+        } else if (args[1] === "range") {
+          const start = parseInt(args[2], 10);
+          const end = parseInt(args[3], 10);
+          if (isNaN(start) || isNaN(end)) {
+            const errorMessageRef = push(messagesRef);
+            await update(errorMessageRef, {
+              User: "[Prime Bot]",
+              Message:
+                "Please provide valid start and end numbers for the range check. Usage: /prime range <start> <end>",
+              Date: Date.now(),
+            });
+          } else if (start > end) {
+            const errorMessageRef = push(messagesRef);
+            await update(errorMessageRef, {
+              User: "[Prime Bot]",
+              Message:
+                "The start number must be less than or equal to the end number.",
+              Date: Date.now(),
+            });
+          } else {
+            const primes = [];
+            for (let i = start; i <= end; i++) {
+              const isPrime = (n) => {
+                if (n <= 1) return false;
+                for (let i = 2; i * i <= n; i++) {
+                  if (n % i === 0) return false;
+                }
+                return true;
+              };
+              if (isPrime(i)) primes.push(i);
+            }
+            const result =
+              primes.length > 0
+                ? `The prime numbers between ${start} and ${end} are: ${primes.join(", ")}`
+                : `No prime numbers found between ${start} and ${end}.`;
+            const botMessageRef = push(messagesRef);
+            await update(botMessageRef, {
+              User: "[Prime Bot]",
+              Message: result,
+              Date: Date.now(),
+            });
+          }
+        } else {
+          const errorMessageRef = push(messagesRef);
+          await update(errorMessageRef, {
+            User: "[Prime Bot]",
+            Message:
+              "Invalid command. Use /prime single <number> or /prime range <start> <end>.",
+            Date: Date.now(),
+          });
+        } // Add this block at line 2015
+      } else if (pureMessage.trim().toLowerCase().startsWith("/dice ")) {
         const userMessageRef = push(messagesRef);
         await update(userMessageRef, {
           User: email,
@@ -13262,7 +13410,7 @@ Make sure to follow all the instructions while answering questions.
           const errorMessageRef = push(messagesRef);
           await update(errorMessageRef, {
             User: BOT_USERS.RNG,
-            Message: "Please specify a valid number of sides (e.g., /roll 6)",
+            Message: "Please specify a valid number of sides (e.g., /dice 6)",
             Date: Date.now(),
           });
           return;
@@ -13286,7 +13434,7 @@ Make sure to follow all the instructions while answering questions.
           Date: Date.now(),
         });
 
-        if (result == 7 && sides == 6) {
+        if (result == 7) {
           await sleep(1000);
           const archfiend1 = push(messagesRef);
           await update(archfiend1, {
@@ -14469,6 +14617,361 @@ Make sure to follow all the instructions while answering questions.
             Date: Date.now(),
           });
         }
+      } else if (pureMessage.trim().toLowerCase() === "/twelveangrymen") {
+        const userMessageRef = push(messagesRef);
+        await update(userMessageRef, {
+          User: email,
+          Message: message,
+          Date: Date.now(),
+        });
+        async function jurorsay(juror, message) {
+          if (juror == "J1") {
+            const tam = push(messagesRef);
+            await update(tam, {
+              User: BOT_USERS.J1,
+              Message: message,
+              Date: Date.now(),
+            });
+          } else if (juror == "J2") {
+            const tam = push(messagesRef);
+            await update(tam, {
+              User: BOT_USERS.J2,
+              Message: message,
+              Date: Date.now(),
+            });
+          } else if (juror == "J3") {
+            const tam = push(messagesRef);
+            await update(tam, {
+              User: BOT_USERS.J3,
+              Message: message,
+              Date: Date.now(),
+            });
+          } else if (juror == "J4") {
+            const tam = push(messagesRef);
+            await update(tam, {
+              User: BOT_USERS.J4,
+              Message: message,
+              Date: Date.now(),
+            });
+          } else if (juror == "J5") {
+            const tam = push(messagesRef);
+            await update(tam, {
+              User: BOT_USERS.J5,
+              Message: message,
+              Date: Date.now(),
+            });
+          } else if (juror == "J6") {
+            const tam = push(messagesRef);
+            await update(tam, {
+              User: BOT_USERS.J6,
+              Message: message,
+              Date: Date.now(),
+            });
+          } else if (juror == "J7") {
+            const tam = push(messagesRef);
+            await update(tam, {
+              User: BOT_USERS.J7,
+              Message: message,
+              Date: Date.now(),
+            });
+          } else if (juror == "J8") {
+            const tam = push(messagesRef);
+            await update(tam, {
+              User: BOT_USERS.J8,
+              Message: message,
+              Date: Date.now(),
+            });
+          } else if (juror == "J9") {
+            const tam = push(messagesRef);
+            await update(tam, {
+              User: BOT_USERS.J9,
+              Message: message,
+              Date: Date.now(),
+            });
+          } else if (juror == "J10") {
+            const tam = push(messagesRef);
+            await update(tam, {
+              User: BOT_USERS.J10,
+              Message: message,
+              Date: Date.now(),
+            });
+          } else if (juror == "J11") {
+            const tam = push(messagesRef);
+            await update(tam, {
+              User: BOT_USERS.J11,
+              Message: message,
+              Date: Date.now(),
+            });
+          } else if (juror == "J12") {
+            const tam = push(messagesRef);
+            await update(tam, {
+              User: BOT_USERS.J12,
+              Message: message,
+              Date: Date.now(),
+            });
+          } else {
+            const tam = push(messagesRef);
+            await update(tam, {
+              User: BOT_USERS.TAM,
+              Message: message,
+              Date: Date.now(),
+            });
+          }
+          const tam = push(messagesRef);
+          await update(tam, {
+            User: BOT_USERS.juror,
+            Message: message,
+            Date: Date.now(),
+          });
+        }
+        jurorsay(
+          "J1",
+          "Ok, settle down, everyone. A vote has been called for.",
+        );
+        await sleep(1000);
+        jurorsay("J1", "We'll vote by juror name. Juror 1?");
+        await sleep(500);
+        jurorsay("J1", "Oh, that's me. *chuckles*");
+        await sleep(500);
+        jurorsay("J1", "Not guilty.");
+        await sleep(1500);
+        jurorsay("J1", "Juror 2?");
+        await sleep(1500);
+        jurorsay("J2", "Not guilty, sir.");
+        await sleep(1500);
+        jurorsay("J1", "Juror 3?");
+        await sleep(1500);
+        jurorsay("J3", "*face contorted* Not... guilty.");
+        await sleep(1500);
+        jurorsay("J1", "Juror 4?");
+        await sleep(1500);
+        jurorsay("J4", "Not guilty.");
+        await sleep(1500);
+        jurorsay("J1", "Juror 5?");
+        await sleep(1500);
+        jurorsay("J5", "Not guilty.");
+        await sleep(1500);
+        jurorsay("J1", "Juror 6?");
+        await sleep(1500);
+        jurorsay("J6", "*looking down* Not guilty.");
+        await sleep(1500);
+        jurorsay("J1", "Juror 7?");
+        await sleep(1500);
+        jurorsay(
+          "J7",
+          "*leans back on chair* Not guilty, get this business finished with!",
+        );
+        await sleep(1500);
+        jurorsay("J1", "Juror 8?");
+        await sleep(1500);
+        jurorsay("J8", "*smiles* Not guilty.");
+        await sleep(1500);
+        jurorsay("J1", "Juror 9?");
+        await sleep(1500);
+        jurorsay("J9", "Not guilty.");
+        await sleep(1500);
+        jurorsay("J1", "Juror 10?");
+        await sleep(1500);
+        jurorsay("J10", "Not guilty!");
+        await sleep(1500);
+        jurorsay("J1", "Juror 11?");
+        await sleep(1500);
+        jurorsay("J11", "...not guilty.");
+        await sleep(1500);
+        jurorsay("J1", "Juror 12?");
+        await sleep(1500);
+        jurorsay("J12", "Not guilty.");
+        await sleep(1500);
+        jurorsay("J1", "Well, we have a verdict, then.");
+      } else if (pureMessage.trim().toLowerCase().startsWith("/love")) {
+        const userMessageRef = push(messagesRef);
+        await update(userMessageRef, {
+          User: email,
+          Message: message,
+          Date: Date.now(),
+        });
+        // Split the message into parts
+        const parts = pureMessage.trim().split(" ");
+
+        // Check if there are enough parts
+        if (parts.length < 2) {
+          lovebotsay("Invalid command. Please specify a mode.");
+          isSending = false;
+          sendButton.disabled = false;
+          return;
+        }
+
+        const mode = parts[1]; // Command mode
+        const person1 = parts[2] || null; // First person
+        const person2 = parts[3] || null; // Second person
+        const ship = parts[4] || null; // Ship description (optional)
+
+        // Function to send a bot message
+        async function lovebotsay(message) {
+          const lovebotRef = push(messagesRef);
+          await update(lovebotRef, {
+            User: BOT_USERS.LOVE,
+            Message: message,
+            Date: Date.now(),
+          });
+        }
+
+        // Handle the mode logic
+        switch (mode) {
+          case "pull":
+            if (!person1) {
+              lovebotsay("Please specify a person for the 'pull' command.");
+              break;
+            }
+            lovebotsay(
+              `${email} wants <button onclick="alert('Imagine having to pull someone to get love.')"><b>${person1}</b></button> to be their name also redacted!`,
+            );
+            break;
+
+          case "push":
+            if (!person1 || !person2) {
+              lovebotsay("Please specify two people for the 'push' command.");
+              break;
+            }
+            lovebotsay(
+              `${email} wants <button onclick="alert('I feel bad for them.')"><b>${person2}</b></button> to be <button onclick="alert('I feel bad for you too.')"><b>${person1}</b></button>'s name redacted!`,
+            );
+            break;
+
+          case "ship":
+            if (!person1 || !person2 || !ship) {
+              lovebotsay(
+                "Please specify two people and a ship description for the 'ship' command.",
+              );
+              break;
+            }
+            lovebotsay(
+              `${email} ships <button onclick="alert('That's one!')"><b>${person1}</b></button> with <button onclick="alert('That's two!')"><b>${person2}</b></button>: <button onclick="alert('What a nice ship name!')"><b>${ship}</b></button>!`,
+            );
+            break;
+
+          case "commutative":
+            if (!person1 || !person2) {
+              lovebotsay(
+                "Please specify two people for the 'commutative' command.",
+              );
+              break;
+            }
+            lovebotsay(
+              `${email} hopes that <button onclick="alert('New commutative relationship?')"><b>${person1}</b></button> and <button onclick="alert('Juicy gossip?')"><b>${person2}</b></button> will form a commutative relationship!`,
+            );
+            break;
+
+          case "breakup":
+            if (!person1 || !person2) {
+              lovebotsay(
+                "Please specify two people for the 'breakup' command.",
+              );
+              break;
+            }
+            lovebotsay(
+              `${email} hopes that <button onclick="alert('What a way to go...')"><b>${person1}</b></button> and <button onclick="alert('So sad...')"><b>${person2}</b></button> will break up!`,
+            );
+            break;
+
+          case "yiyang":
+            lovebotsay("Fat Cat.");
+            break;
+
+          case "help":
+            lovebotsay(
+              "Tell your friends (or your name redacted) to go take some action! Disclaimer: this bot is only a joke and is not affiliated with any Human Development topic.",
+            );
+            lovebotsay(
+              "/love pull person1, /love push person1 person2, /love ship person1 person2 shipname, /love commutative person1 person2, /love breakup person1 person2",
+            );
+            break;
+
+          default:
+            lovebotsay("Unknown mode. Please use a valid command.");
+        }
+      } else if (pureMessage.trim().toLowerCase().startsWith("/clicker")) {
+        const temp_email =
+          typeof email !== "undefined"
+            ? email.replace(/\./g, "*")
+            : "anonymous";
+        console.log("/clicker activated");
+        if (pureMessage.trim().toLowerCase() === "/clicker leaderboard") {
+          console.log(" Clicker Leaderboard running");
+          // Leaderboard logic similar to snake
+          const userMessageRef = push(messagesRef);
+          await update(userMessageRef, {
+            User: email,
+            Message: message,
+            Date: Date.now(),
+          });
+
+          try {
+            const scoresRef = ref(database, "ClickerScores");
+            const scoresSnapshot = await get(scoresRef);
+            const scores = scoresSnapshot.val() || {};
+
+            const sortedScores = Object.entries(scores)
+              .map(([userEmail, score]) => ({ email: userEmail, score }))
+              .sort((a, b) => b.score - a.score);
+
+            const pushMessage = async (text) => {
+              const msgRef = push(messagesRef);
+              await update(msgRef, {
+                User: "[Clicker Game]",
+                Message: text,
+                Date: Date.now(),
+              });
+            };
+
+            await pushMessage("🕹️ CLICKER LEADERBOARD 🕹️");
+
+            if (sortedScores.length === 0) {
+              await pushMessage("No scores yet! Be the first to play!");
+            } else {
+              sortedScores.slice(0, 10).forEach((entry, index) => {
+                pushMessage(
+                  `${index + 1}. ${entry.email.replace(/\*/g, ".")}: ${entry.score}`,
+                );
+              });
+            }
+          } catch (error) {
+            console.error("Error retrieving leaderboard:", error);
+          }
+        } else {
+          console.log("Check Time for Clicker");
+          // Same school hours check as snake game
+          const now = new Date();
+          const pacificNow = new Date(
+            now.toLocaleString("en-US", {
+              timeZone: "America/Los_Angeles",
+            }),
+          );
+          const day = pacificNow.getDay();
+          const hour = pacificNow.getHours();
+          const minute = pacificNow.getMinutes();
+          const currentTime = hour * 60 + minute;
+          const schoolStart = 495; // 8:15 AM
+          const schoolEnd = 920; // 3:20 PM
+
+          if (
+            day >= 1 &&
+            day <= 5 &&
+            currentTime >= schoolStart &&
+            currentTime <= schoolEnd
+          ) {
+            console.log("schooltime is active");
+            const errorMessageRef = push(messagesRef);
+            await update(errorMessageRef, {
+              User: "[Clicker Game]",
+              Message: "No Gaming During School!",
+              Date: Date.now(),
+            });
+          } else {
+            console.log("starting clicker game");
+            createClickerGame();
+          }
+        }
       } else if (pureMessage.trim().toLowerCase().startsWith("/shell")) {
         const command = pureMessage.trim().slice(7);
         let noCommand = false;
@@ -14548,14 +15051,96 @@ Make sure to follow all the instructions while answering questions.
             Date: Date.now(),
           });
         }
-      } else {
-        const newMessageRef = push(messagesRef);
-        await update(newMessageRef, {
-          User: email,
-          Message: message,
-          Date: Date.now(),
-        });
-      }
+      }  else if (pureMessage.trim().toLowerCase().startsWith("/tau")) {
+                const userMessageRef = push(messagesRef);
+                await update(userMessageRef, {
+                    User: email,
+                    Message: message,
+                    Date: Date.now(),
+                });
+
+                const tauDigits = "2831853071795864769252867665590057683943387987502116419498891846156328125724179972560696506842341359642961730265646132941876892191011644634507188162569622349005682054038770422111192892458979098607639288576219513318668922569512964675735663305424038182912971338469206972209086532964267872145204982825474491740132126311763497630418419256585081834307287357851807200226610610976409330427682939038830232188661145407315191839061843722347638652235862102370961489247599254991347037715054497824558763660238982596673467248813132861720427898927904494743814043597218874055410784343525863535047693496369353388102640011362542905271216555715426855155792183472743574429368818024499068602930991707421015845593785178470840399122242580439217280688363196272595495426199210374144226999999674";
+
+                if (!window.tauGame) {
+                    window.tauGame = {};
+                }
+
+                window.tauGame[email] = {
+                    active: true,
+                    currentPosition: 0,
+                    startTime: Date.now()
+                };
+
+                const welcomeMessageRef = push(messagesRef);
+                await update(welcomeMessageRef, {
+                    User: "[Tau Game]",
+                    Message: "🔄 Welcome to the Tau Game! Enter the digits of tau (τ = 2π) in groups of 5 digits, not including the integer portion. Start with 28318...",
+                    Date: Date.now(),
+                });
+            } else {
+                if (window.tauGame && window.tauGame[email] && window.tauGame[email].active) {
+                    const tauDigits = "283185307179586476925286766559005768394338798750211641949889184615632812572417997256069650684234";
+                    const userInput = pureMessage.trim();
+                    const gameState = window.tauGame[email];
+
+                    const newMessageRef = push(messagesRef);
+                    await update(newMessageRef, {
+                        User: email,
+                        Message: message,
+                        Date: Date.now(),
+                    });
+
+                    if (userInput === "/tau stop") {
+                        window.tauGame[email].active = false;
+                        const endMessageRef = push(messagesRef);
+                        await update(endMessageRef, {
+                            User: "[Tau Game]",
+                            Message: `Game ended. You reached ${gameState.currentPosition} digits of tau.`,
+                            Date: Date.now(),
+                        });
+                    } else {
+                        const expectedDigits = tauDigits.substr(gameState.currentPosition, 5);
+                        const responseMessageRef = push(messagesRef);
+
+                        if (userInput === expectedDigits) {
+                            gameState.currentPosition += 5;
+
+                            if (gameState.currentPosition >= tauDigits.length) {
+                                const timeTaken = ((Date.now() - gameState.startTime) / 1000).toFixed(1);
+                                await update(responseMessageRef, {
+                                    User: "[Tau Game]",
+                                    Message: `🎉 Amazing! You've completed all ${tauDigits.length} digits of tau in ${timeTaken} seconds!`,
+                                    Date: Date.now(),
+                                });
+                                window.tauGame[email].active = false;
+                            } else {
+                                const timeTaken = ((Date.now() - gameState.startTime) / 1000).toFixed(1);
+                                await update(responseMessageRef, {
+                                    User: "[Tau Game]",
+                                    Message: `✅ Correct! You've reached ${gameState.currentPosition} digits in ${timeTaken} seconds. Keep going...`,
+                                    Date: Date.now(),
+                                });
+                            }
+                        } else {
+                            const correctChunk = expectedDigits;
+                            const timeTaken = ((Date.now() - gameState.startTime) / 1000).toFixed(1);
+                            await update(responseMessageRef, {
+                                User: "[Tau Game]",
+                                Message: `❌ Game over! Expected "${correctChunk}" next. You reached ${gameState.currentPosition} digits in ${timeTaken} seconds. Type /tau to play again!`,
+                                Date: Date.now(),
+                            });
+                            window.tauGame[email].active = false;
+                        }
+                    }
+                } else {
+                    const newMessageRef = push(messagesRef);
+                    await update(newMessageRef, {
+                        User: email,
+                        Message: message,
+                        Date: Date.now(),
+                    });
+                }
+            }
 
       const snapshot = await get(messagesRef);
       const messages = snapshot.val() || {};
@@ -16319,6 +16904,284 @@ Make sure to follow all the instructions while answering questions.
     await loadMessages(channelName);
   }
 
+  function initializeVotingSystem() {
+    document
+      .getElementById("vote-bots-button")
+      ?.addEventListener("click", openVotingScreen);
+    document
+      .getElementById("submit-votes")
+      ?.addEventListener("click", submitVotes);
+    document
+      .getElementById("view-leaderboard")
+      ?.addEventListener("click", viewLeaderboard);
+    document
+      .getElementById("back-to-chat")
+      ?.addEventListener("click", backToChat);
+    document.getElementById("edit-votes")?.addEventListener("click", editVotes);
+    document
+      .getElementById("refresh-leaderboard")
+      ?.addEventListener("click", refreshLeaderboard);
+    document
+      .getElementById("back-from-leaderboard")
+      ?.addEventListener("click", backToChat);
+
+    const botsRef = ref(database, "Bots");
+    const votesRef = ref(database, "BotVote");
+  }
+
+  let userVotes = {};
+  let allBots = {};
+  let hasVotedBefore = false;
+
+  function sanitizeEmail(email) {
+    return email.replace(/\./g, "*");
+  }
+
+  function openVotingScreen() {
+    const sanitizedEmail = sanitizeEmail(email);
+    const votingList = document.getElementById("voting-list");
+    votingList.innerHTML =
+      '<div class="loading-indicator"><div>Loading bots...</div></div>';
+
+    showScreen("voting-screen");
+
+    const botsRef = ref(database, "Bots");
+    get(botsRef)
+      .then((snapshot) => {
+        allBots = snapshot.val() || {};
+
+        const userVotesRef = ref(database, `BotVote/${sanitizedEmail}`);
+        return get(userVotesRef);
+      })
+      .then((snapshot) => {
+        userVotes = snapshot.val() || {};
+        hasVotedBefore = Object.keys(userVotes).length > 0;
+        renderVotingList();
+      })
+      .catch((error) => {
+        console.error("Error loading voting data:", error);
+        votingList.innerHTML = `<div class="error-message">Error loading bots: ${error.message}</div>`;
+      });
+  }
+
+  function renderVotingList() {
+    const votingList = document.getElementById("voting-list");
+    votingList.innerHTML = "";
+
+    if (Object.keys(allBots).length === 0) {
+      votingList.innerHTML =
+        '<div class="no-votes-message">No bots available for voting</div>';
+      return;
+    }
+
+    Object.keys(allBots).forEach((botName) => {
+      const userVote = userVotes[botName];
+
+      const voteItem = document.createElement("div");
+      voteItem.className = "voting-item";
+      voteItem.innerHTML = `
+        <div class="bot-info">
+          <div class="bot-name">
+            ${botName}
+            <span class="bot-tooltip">ℹ️
+              <span class="tooltip-text">${allBots[botName] || "No description available"}</span>
+            </span>
+          </div>
+        </div>
+        <div class="vote-options">
+          <button class="vote-button yes ${userVote === true ? "selected" : ""}" data-bot="${botName}">Yes</button>
+          <button class="vote-button no ${userVote === false ? "selected" : ""}" data-bot="${botName}">No</button>
+        </div>
+      `;
+
+      votingList.appendChild(voteItem);
+    });
+
+    document.querySelectorAll(".vote-button").forEach((button) => {
+      button.addEventListener("click", function () {
+        const botName = this.getAttribute("data-bot");
+        const isYesVote = this.classList.contains("yes");
+
+        document
+          .querySelectorAll(`.vote-button[data-bot="${botName}"]`)
+          .forEach((btn) => {
+            btn.classList.remove("selected");
+          });
+        this.classList.add("selected");
+
+        userVotes[botName] = isYesVote;
+      });
+    });
+
+    const submitButton = document.getElementById("submit-votes");
+    if (hasVotedBefore) {
+      submitButton.innerText = "Update Votes";
+    } else {
+      submitButton.innerText = "Submit Votes";
+    }
+  }
+
+  function submitVotes() {
+    const sanitizedEmail = sanitizeEmail(email);
+    const submitButton = document.getElementById("submit-votes");
+
+    const missingVotes = Object.keys(allBots).filter(
+      (botName) => !userVotes.hasOwnProperty(botName),
+    );
+
+    if (missingVotes.length > 0) {
+      alert(`Please vote for the following bots: ${missingVotes.join(", ")}`);
+      return;
+    }
+
+    submitButton.disabled = true;
+    submitButton.innerText = hasVotedBefore ? "Updating..." : "Submitting...";
+
+    const updates = {};
+    Object.keys(userVotes).forEach((botName) => {
+      updates[`BotVote/${sanitizedEmail}/${botName}`] = userVotes[botName];
+    });
+
+    update(ref(database), updates)
+      .then(() => {
+        submitButton.innerText = hasVotedBefore
+          ? "Votes Updated!"
+          : "Votes Submitted!";
+        hasVotedBefore = true;
+
+        setTimeout(() => {
+          submitButton.disabled = false;
+          submitButton.innerText = "Update Votes";
+
+          viewLeaderboard();
+        }, 1000);
+      })
+      .catch((error) => {
+        console.error("Error submitting votes:", error);
+        submitButton.innerText = "Error! Try Again";
+        submitButton.disabled = false;
+      });
+  }
+
+  function viewLeaderboard() {
+    const leaderboardList = document.getElementById("leaderboard-list");
+    leaderboardList.innerHTML =
+      '<div class="loading-indicator"><div>Loading results...</div></div>';
+
+    showScreen("leaderboard-screen");
+    refreshLeaderboard();
+  }
+
+  function refreshLeaderboard() {
+    const leaderboardList = document.getElementById("leaderboard-list");
+    leaderboardList.innerHTML =
+      '<div class="loading-indicator"><div>Refreshing data...</div></div>';
+
+    const botsRef = ref(database, "Bots");
+    const votesRef = ref(database, "BotVote");
+
+    Promise.all([get(botsRef), get(votesRef)])
+      .then(([botsSnapshot, votesSnapshot]) => {
+        const bots = botsSnapshot.val() || {};
+        const allVotes = votesSnapshot.val() || {};
+
+        const approvalData = calculateApprovalRatings(bots, allVotes);
+
+        const sortedBots = Object.keys(approvalData).sort((a, b) => {
+          return (
+            approvalData[b].approvalPercentage -
+            approvalData[a].approvalPercentage
+          );
+        });
+
+        renderLeaderboard(sortedBots, approvalData);
+      })
+      .catch((error) => {
+        console.error("Error loading leaderboard data:", error);
+        leaderboardList.innerHTML = `<div class="error-message">Error loading leaderboard: ${error.message}</div>`;
+      });
+  }
+
+  function calculateApprovalRatings(bots, allVotes) {
+    const approvalData = {};
+
+    Object.keys(bots).forEach((botName) => {
+      let yesVotes = 0;
+      let totalVotes = 0;
+
+      Object.values(allVotes).forEach((userVote) => {
+        if (userVote.hasOwnProperty(botName)) {
+          totalVotes++;
+          if (userVote[botName] === true) {
+            yesVotes++;
+          }
+        }
+      });
+
+      const approvalPercentage =
+        totalVotes > 0 ? (yesVotes / totalVotes) * 100 : 0;
+
+      approvalData[botName] = {
+        yesVotes,
+        totalVotes,
+        approvalPercentage,
+        description: bots[botName] || "No description available",
+      };
+    });
+
+    return approvalData;
+  }
+
+  function renderLeaderboard(sortedBots, approvalData) {
+    const leaderboardList = document.getElementById("leaderboard-list");
+    leaderboardList.innerHTML = "";
+
+    if (sortedBots.length === 0) {
+      leaderboardList.innerHTML =
+        '<div class="no-votes-message">No voting data available</div>';
+      return;
+    }
+
+    sortedBots.forEach((botName, index) => {
+      const data = approvalData[botName];
+      const percentage = data.approvalPercentage.toFixed(1);
+
+      const leaderboardItem = document.createElement("div");
+      leaderboardItem.className = "leaderboard-item";
+      leaderboardItem.innerHTML = `
+    <div class="bot-info" style="width: 100%;">
+      <div class="bot-name">
+        ${botName}
+        <span class="bot-tooltip">ℹ️
+          <span class="tooltip-text">${data.description}</span>
+        </span>
+      </div>
+      <div class="approval-bar-container">
+        <div class="approval-bar" style="width: ${percentage}%"></div>
+      </div>
+      <div class="vote-count">${data.yesVotes} of ${data.totalVotes} votes</div>
+    </div>
+  `;
+
+      leaderboardList.appendChild(leaderboardItem);
+    });
+  }
+
+  function editVotes() {
+    openVotingScreen();
+  }
+
+  function backToChat() {
+    showScreen("chat-screen");
+  }
+
+  function showScreen(screenId) {
+    document.querySelectorAll(".screen").forEach((screen) => {
+      screen.classList.add("hidden");
+    });
+    document.getElementById("chat-screen").classList.add("hidden");
+    document.getElementById(screenId).classList.remove("hidden");
+  }
 
   checkForUpdates();
   setupGlobalFileViewer();
@@ -16326,6 +17189,7 @@ Make sure to follow all the instructions while answering questions.
   setupUnreadCountUpdates();
   await initializeReadMessages();
   loadMessages("General");
+  initializeVotingSystem();
   setupInteractionTracking(document.getElementById("bookmarklet-gui"));
   initializeUserActivitySidebar();
   const messagesDiv = document.getElementById("messages");
