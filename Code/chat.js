@@ -14472,6 +14472,7 @@ Make sure to follow all the instructions while answering questions.
         }
       } else if (pureMessage.trim().toLowerCase().startsWith("/shell")) {
         console.log("/shell activated")
+        console.log("Purmeassage is " + pureMessage)
         const command = pureMessage.trim().slice(7);
         let noCommand = false;
         let useSudo = false;
