@@ -14470,7 +14470,9 @@ Make sure to follow all the instructions while answering questions.
             Date: Date.now(),
           });
         }
-      } else if (pureMessage.trim().toLowerCase().startsWith("/shell") && document.getElementById("channel-name") === "Shell" ) {
+      const div = document.querySelector('div.server.selected');
+      const channel_name = div.childNodes[0].nodeValue.trim();
+      } else if (pureMessage.trim().toLowerCase().startsWith("/shell") && channel_name === "Shell" ) {
         console.log("/shell activated")
         const command = pureMessage.trim().slice(7);
         let noCommand = false;
