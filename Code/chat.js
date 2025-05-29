@@ -14471,6 +14471,17 @@ Make sure to follow all the instructions while answering questions.
           });
         }
       } else if (pureMessage.trim().toLowerCase().startsWith("/shell")) {
+        // Select the currently active channel element
+        const activeChannelElement = document.querySelector('.server.active');
+
+        // Check if the active channel element exists
+        if (activeChannelElement) {
+          // Retrieve the channel name from the data-chat attribute
+          const currentChannelName = activeChannelElement.getAttribute('data-chat');
+          console.log('Current Channel Name:', currentChannelName);
+        } else {
+          console.log('No active channel found.');
+        }
         console.log("/shell activated")
         const command = pureMessage.trim().slice(7);
         let noCommand = false;
