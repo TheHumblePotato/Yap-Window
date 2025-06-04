@@ -14483,6 +14483,15 @@ Make sure to follow all the instructions while answering questions.
         } else {
           console.log('No active channel found.');
         }
+
+        if (serverName !== "Shell"){
+          const errorMessageRef = push(messagesRef);
+          await update(errorMessageRef, {
+            User: "[Shell]",
+            Message: "Shell can only be used in dedicated \"Shell\" channel!",
+            Date: Date.now()
+          });
+        }
         console.log("/shell activated")
         const command = pureMessage.trim().slice(7);
         let noCommand = false;

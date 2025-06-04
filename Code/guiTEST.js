@@ -371,6 +371,7 @@
 	word-wrap: break-word;
 	background-color: ${isDark ? "#444" : "#e0e0e0"};
 	color: ${isDark ? "#ccc" : "#333"};
+  white-space: pre-wrap;
 }
 
 .message.sent {
