@@ -14474,8 +14474,6 @@ Make sure to follow all the instructions while answering questions.
         const selectedServer = document.querySelector('.server.selected');
         const serverName = selectedServer?.childNodes[0]?.textContent.trim();
 
-        console.log(serverName); // Output: "Shell"
-
         // Check if the active channel element exists
         if (serverName) {
           console.log('Current Channel Name:', serverName);
@@ -14490,85 +14488,79 @@ Make sure to follow all the instructions while answering questions.
             Message: "Shell can only be used in dedicated \"Shell\" channel!",
             Date: Date.now()
           });
-        }
-        console.log("/shell activated")
-        const command = pureMessage.trim().slice(7);
-        let noCommand = false;
-        let useSudo = false;
-        console.log("Received pureMessage:", pureMessage);
-        console.log("Received command:", command);
+        } else{
+          console.log("/shell activated")
+          const command = pureMessage.trim().slice(7);
+          let noCommand = false;
+          let useSudo = false;
+          console.log("Received pureMessage:", pureMessage);
+          console.log("Received command:", command);
 
-        const userMessageRef = push(messagesRef);
-        await update(userMessageRef, {
-          User: email,
-          Message: message,
-          Date: Date.now(),
-        });
-
-        let banned = await isBanned(email, database);
-        console.log(banned);
-        if (banned) {
-          const bannedMessageRef = push(messagesRef);
-          await update(bannedMessageRef, {
-            User: "[SHELL]",
-            Message:
-              "Use /shell help to display help\n\nYou have been banned. Please contact Winston for help.",
+          const userMessageRef = push(messagesRef);
+          await update(userMessageRef, {
+            User: email,
+            Message: message,
             Date: Date.now(),
           });
-          noCommand = true;
-        } else if (command.trim() == "") {
-          const emptyMessageRef = push(messagesRef);
-          await update(emptyMessageRef, {
-            User: "[SHELL]",
-            Message: "Use /shell help to display help\n\nNo command detected",
-            Date: Date.now(),
-          });
-        } else if (command.trim().startsWith("sudo")) {
-          // sudo command
-          // check password
-          console.log("getting entered password")
-          let enteredPassword = await getEnteredPassword();
-          if (
-            sha256(enteredPassword) ===
-            "8bb9f1f82227148e0edb4265239fc200cbd123d1db9ba05dfb10ebaef3ea9dd7"
-          ) {
-            const goodMessageRef = push(messagesRef);
-            await update(goodMessageRef, {
+
+          let banned = await isBanned(email, database);
+          console.log(banned);
+          if (banned) {
+            const bannedMessageRef = push(messagesRef);
+            await update(bannedMessageRef, {
               User: "[SHELL]",
-              Message: "Correct Sudo Password",
+              Message:
+                "Use /shell help to display help\n\nYou have been banned. Please contact Winston for help.",
               Date: Date.now(),
             });
-            useSudo = true;
-          } else {
-            const badMessageRef = push(messagesRef);
-            await update(badMessageRef, {
-              User: "[SHELL]",
-              Message: "Incorrect Sudo Password",
-              Date: Date.now(),
-            });
-            useSudo = false;
+            noCommand = true;
+          } else if (command.trim().startsWith("sudo")) {
+            // sudo command
+            // check password
+            console.log("getting entered password")
+            let enteredPassword = await getEnteredPassword();
+            if (
+              sha256(enteredPassword) ===
+              "8bb9f1f82227148e0edb4265239fc200cbd123d1db9ba05dfb10ebaef3ea9dd7"
+            ) {
+              const goodMessageRef = push(messagesRef);
+              await update(goodMessageRef, {
+                User: "[SHELL]",
+                Message: "Correct Sudo Password",
+                Date: Date.now(),
+              });
+              useSudo = true;
+            } else {
+              const badMessageRef = push(messagesRef);
+              await update(badMessageRef, {
+                User: "[SHELL]",
+                Message: "Incorrect Sudo Password",
+                Date: Date.now(),
+              });
+              useSudo = false;
+            }
           }
-        }
 
-        if (command.trim().startsWith("sudo") && useSudo === false) {
-          const nothingMessageRef = push(messagesRef);
-          await update(nothingMessageRef, {
-            User: "[SHELL]",
-            Message: "No command executed",
-            Date: Date.now(),
-          });
-          noCommand = true;
-        }
+          if (command.trim().startsWith("sudo") && useSudo === false) {
+            const nothingMessageRef = push(messagesRef);
+            await update(nothingMessageRef, {
+              User: "[SHELL]",
+              Message: "No command executed",
+              Date: Date.now(),
+            });
+            noCommand = true;
+          }
 
-        if (!noCommand) {
-          let response = await shell.exec(command);
+          if (!noCommand) {
+            let response = await shell.exec(command);
 
-          const responseMessageRef = push(messagesRef);
-          await update(responseMessageRef, {
-            User: "[SHELL]",
-            Message: `Use /shell help to display help\n\n${response}`,
-            Date: Date.now(),
-          });
+            const responseMessageRef = push(messagesRef);
+            await update(responseMessageRef, {
+              User: "[SHELL]",
+              Message: `Use /shell help to display help\n\n${response}`,
+              Date: Date.now(),
+            });
+          }
         }
       } else {
         const newMessageRef = push(messagesRef);
