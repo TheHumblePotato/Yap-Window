@@ -14474,8 +14474,6 @@ Make sure to follow all the instructions while answering questions.
         const selectedServer = document.querySelector('.server.selected');
         const serverName = selectedServer?.childNodes[0]?.textContent.trim();
 
-        console.log(serverName); // Output: "Shell"
-
         // Check if the active channel element exists
         if (serverName) {
           console.log('Current Channel Name:', serverName);
