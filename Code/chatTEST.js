@@ -1,5 +1,4 @@
 (async function () {
-  console.log("Loading z")
   var readMessages = {};
   var readAll = true;
   var isDark = false;
