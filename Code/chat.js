@@ -14472,13 +14472,14 @@ Make sure to follow all the instructions while answering questions.
         }
       } else if (pureMessage.trim().toLowerCase().startsWith("/shell")) {
         // Select the currently active channel element
-        const activeChannelElement = document.querySelector('.server.active');
+        const selectedServer = document.querySelector('.server.selected');
+        const serverName = selectedServer?.childNodes[0]?.textContent.trim();
+
+        console.log(serverName); // Output: "Shell"
 
         // Check if the active channel element exists
-        if (activeChannelElement) {
-          // Retrieve the channel name from the data-chat attribute
-          const currentChannelName = activeChannelElement.getAttribute('data-chat');
-          console.log('Current Channel Name:', currentChannelName);
+        if (serverName) {
+          console.log('Current Channel Name:', serverName);
         } else {
           console.log('No active channel found.');
         }
