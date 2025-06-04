@@ -51,7 +51,7 @@
     }
 
     fetch(
-      "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/main/Code/gui.jsPRE?token=$(date +%s)",
+      "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/main/Code/guiPRE.js?token=$(date +%s)",
     )
       .then((r) => r.text())
       .then((code) => {
@@ -73,7 +73,7 @@
             child,
           };
           fetch(
-            "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/main/Code/chat.jsPRE?token=$(date +%s)",
+            "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/main/Code/chatPRE.js?token=$(date +%s)",
           )
             .then((r) => r.text())
             .then((chatCode) => {
