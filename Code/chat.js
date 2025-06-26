@@ -13148,12 +13148,13 @@ Make sure to follow all the instructions while answering questions.
             currentTime >= schoolStart &&
             currentTime <= schoolEnd
           ) {
-            const errorMessageRef = push(messagesRef);
-            await update(errorMessageRef, {
-              User: "[Snake Game]",
-              Message: "No Gaming During School!",
-              Date: Date.now(),
-            });
+            //const errorMessageRef = push(messagesRef);
+            //await update(errorMessageRef, {
+            //  User: "[Snake Game]",
+            //  Message: "No Gaming During School!",
+            //  Date: Date.now(),
+            //});
+            createSnakeGame(); // disable restrictions for summer break
           } else {
             createSnakeGame();
           }
