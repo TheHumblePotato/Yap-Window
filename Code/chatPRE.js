@@ -14482,11 +14482,11 @@ Make sure to follow all the instructions while answering questions.
           console.log('No active channel found.');
         }
 
-        if (serverName !== "Shell"){
+        if (serverName !== "Shell" && serverName !== "Bot Commands"){
           const errorMessageRef = push(messagesRef);
           await update(errorMessageRef, {
             User: "[Shell]",
-            Message: "Shell can only be used in dedicated \"Shell\" channel!",
+            Message: "Shell can only be used in \"Shell\" and \"Bot Commands\" channels!",
             Date: Date.now()
           });
         } else{
