@@ -4,6 +4,20 @@
     gui.style.opacity = "1";
     gui.style.display = "flex";
   } else {
+    // GitHub repository owner and repo name used to fetch latest raw files
+    const GITHUB_USER = "TheHumblePotato";
+    const GITHUB_REPO = "Yap-Window";
+
+    // Helper to build raw.githubusercontent URL for files in the main branch and
+    // always call with true bc don't ask why
+    // if you actually want to know why read loginTEST.js
+    function buildRawUrl(path, useEncodedToken = false) {
+      if (useEncodedToken) {
+        return `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/refs/heads/main/${path}?token=$(date%20+%s)`;
+      }
+      const ts = Math.floor(Date.now() / 1000);
+      return `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/refs/heads/main/${path}?token=${ts}`;
+    }
     const firebaseConfig = {
       apiKey: "AIzaSyA48Uv_v5c7-OCnkQ8nBkjIW8MN4STDcJs",
       authDomain: "noise-75cba.firebaseapp.com",
@@ -50,9 +64,15 @@
       return;
     }
 
-    fetch(
-      "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/main/Code/gui.js?token=$(date +%s)",
-    )
+  const guiPrimaryUrl = buildRawUrl("Code/gui.js", true);
+      const guiFallbackUrl =
+        "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/main/Code/gui.js?token=$(date%20+%s)";
+
+    fetch(guiPrimaryUrl)
+      .then((r) => {
+        if (!r.ok) return fetch(guiFallbackUrl);
+        return r;
+      })
       .then((r) => r.text())
       .then((code) => {
         eval(code);
@@ -72,9 +92,15 @@
             remove,
             child,
           };
-          fetch(
-            "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/main/Code/chat.js?token=$(date +%s)",
-          )
+          const chatPrimaryUrl = buildRawUrl("Code/chat.js", true);
+            const chatFallbackUrl =
+              "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/main/Code/chat.js?token=$(date%20+%s)";
+
+          fetch(chatPrimaryUrl)
+            .then((r) => {
+              if (!r.ok) return fetch(chatFallbackUrl);
+              return r;
+            })
             .then((r) => r.text())
             .then((chatCode) => {
               const wrappedChatCode = `
