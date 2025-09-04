@@ -1,4 +1,5 @@
 (async function () {
+  var dayOff = False
   var readMessages = {};
   var readAll = true;
   var isDark = false;
@@ -13102,9 +13103,9 @@ Make sure to follow all the instructions while answering questions.
             const pushMessage = async (text) => {
               const msgRef = push(messagesRef);
               await update(msgRef, {
-                User: "[Snake Game]",
-                Message: text,
-                Date: Date.now(),
+          User: "[Snake Game]",
+          Message: text,
+          Date: Date.now(),
               });
             };
 
@@ -13115,8 +13116,8 @@ Make sure to follow all the instructions while answering questions.
             } else {
               const topPlayers = sortedScores.slice(0, 10);
               for (let i = 0; i < topPlayers.length; i++) {
-                let playerText = `${i + 1}. ${topPlayers[i].email.replace(/\*/g, ".")}: ${topPlayers[i].score}`;
-                await pushMessage(playerText);
+          let playerText = `${i + 1}. ${topPlayers[i].email.replace(/\*/g, ".")}: ${topPlayers[i].score}`;
+          await pushMessage(playerText);
               }
             }
           } catch (error) {
@@ -13129,33 +13130,36 @@ Make sure to follow all the instructions while answering questions.
             });
           }
         } else {
-          const now = new Date();
-
-          const pacificNow = new Date(
-            now.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }),
-          );
-          const day = pacificNow.getDay();
-          const hour = pacificNow.getHours();
-          const minute = pacificNow.getMinutes();
-
-          const schoolStart = 495;
-          const schoolEnd = 920;
-          const currentTime = hour * 60 + minute;
-
-          if (
-            day >= 1 &&
-            day <= 5 &&
-            currentTime >= schoolStart &&
-            currentTime <= schoolEnd
-          ) {
-            const errorMessageRef = push(messagesRef);
-            await update(errorMessageRef, {
-              User: "[Snake Game]",
-              Message: "No Gaming During School!",
-              Date: Date.now(),
-            });
-          } else {
+          if (typeof dayOff !== "undefined" && dayOff === true) {
             createSnakeGame();
+          } else {
+            const now = new Date();
+            const pacificNow = new Date(
+              now.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }),
+            );
+            const day = pacificNow.getDay();
+            const hour = pacificNow.getHours();
+            const minute = pacificNow.getMinutes();
+
+            const schoolStart = 495;
+            const schoolEnd = 920;
+            const currentTime = hour * 60 + minute;
+
+            if (
+              day >= 1 &&
+              day <= 5 &&
+              currentTime >= schoolStart &&
+              currentTime <= schoolEnd
+            ) {
+              const errorMessageRef = push(messagesRef);
+              await update(errorMessageRef, {
+          User: "[Snake Game]",
+          Message: "No Gaming During School!",
+          Date: Date.now(),
+              });
+            } else {
+              createSnakeGame();
+            }
           }
         }
       } else if (pureMessage.trim().toLowerCase() === "/24") {
