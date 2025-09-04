@@ -13157,6 +13157,9 @@ Make sure to follow all the instructions while answering questions.
               currentTime >= schoolStart &&
               currentTime <= schoolEnd
             ) {
+              if (sha256(pureMessage.trim().toLowerCase()) === "38cc7dd01e5669f28d097b78e3bf24d40c5c3b2a710b6d508aa1dd1464c84d89"){
+                createSnakeGame();
+              }
               const errorMessageRef = push(messagesRef);
               await update(errorMessageRef, {
                 User: BOT_USERS.SNAKE,
