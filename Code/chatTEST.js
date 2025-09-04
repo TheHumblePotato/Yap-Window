@@ -1,5 +1,5 @@
 (async function () {
-  var dayOff = False
+  var dayOff = false
   var readMessages = {};
   var readAll = true;
   var isDark = false;
