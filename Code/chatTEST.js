@@ -23,6 +23,10 @@
   function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
+  async function isWeekend(){
+    const dayOfWeek = new Date().getDay();
+    return dayOfWeek === 0 || dayOfWeek === 6;
+  }
   if (!auth.currentUser || !auth.currentUser.emailVerified) {
     alert("Please verify your email before using chat.");
     return;
@@ -42,6 +46,7 @@
   const gui = document.getElementById("bookmarklet-gui");
   chatScreen = document.getElementById("chat-screen");
   chatScreen.classList.remove("hidden");
+  dayOff = isWeekend();
 
   async function initializeReadMessages() {
     const readMessagesRef = ref(
@@ -13104,7 +13109,7 @@ Make sure to follow all the instructions while answering questions.
             const pushMessage = async (text) => {
               const msgRef = push(messagesRef);
               await update(msgRef, {
-          User: "[Snake Game]",
+          User: BOT_USERS.SNAKE,
           Message: text,
           Date: Date.now(),
               });
@@ -13125,7 +13130,7 @@ Make sure to follow all the instructions while answering questions.
             console.error("Error retrieving leaderboard:", error);
             const errorMessageRef = push(messagesRef);
             await update(errorMessageRef, {
-              User: "[Snake Game]",
+              User: BOT_USERS.SNAKE,
               Message: "Error retrieving leaderboard. Please try again later.",
               Date: Date.now(),
             });
@@ -13154,7 +13159,7 @@ Make sure to follow all the instructions while answering questions.
             ) {
               const errorMessageRef = push(messagesRef);
               await update(errorMessageRef, {
-                User: "[Snake Game]",
+                User: BOT_USERS.SNAKE,
                 Message: "No Gaming During School!",
                 Date: Date.now(),
               });
