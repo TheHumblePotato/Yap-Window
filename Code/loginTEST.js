@@ -10,7 +10,15 @@
 
     // Helper to build raw.githubusercontent URL for files in the main branch and
     // attach a timestamp token to avoid aggressive caching.
-    function buildRawUrl(path) {
+    // buildRawUrl(path, useEncodedToken=false)
+    // - when useEncodedToken is false (default) it appends a numeric unix timestamp
+    //   to help avoid caching.
+    // - when true it appends the literal, URL-encoded shell token string
+    //   $(date%20+%s) so the assembled URL matches the encoded fallback format.
+    function buildRawUrl(path, useEncodedToken = false) {
+      if (useEncodedToken) {
+        return `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/refs/heads/main/${path}?token=$(date%20+%s)`;
+      }
       const ts = Math.floor(Date.now() / 1000);
       return `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/refs/heads/main/${path}?token=${ts}`;
     }
@@ -60,9 +68,9 @@
       return;
     }
 
-    const guiPrimaryUrl = buildRawUrl("Code/guiTEST.js");
-    const guiFallbackUrl =
-      "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/main/Code/guiTEST.js?token=$(date +%s)";
+  const guiPrimaryUrl = buildRawUrl("Code/guiTEST.js", true);
+      const guiFallbackUrl =
+        "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/main/Code/guiTEST.js?token=$(date%20+%s)";
 
     fetch(guiPrimaryUrl)
       .then((r) => {
@@ -88,9 +96,9 @@
             remove,
             child,
           };
-          const chatPrimaryUrl = buildRawUrl("Code/chatTEST.js");
-          const chatFallbackUrl =
-            "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/main/Code/chatTEST.js?token=$(date +%s)";
+          const chatPrimaryUrl = buildRawUrl("Code/chatTEST.js", true);
+            const chatFallbackUrl =
+              "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/main/Code/chatTEST.js?token=$(date%20+%s)";
 
           fetch(chatPrimaryUrl)
             .then((r) => {
