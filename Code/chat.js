@@ -727,6 +727,7 @@
         "[Tiggy Bot]",
         "[Twelve Angry Men]",
         "[Jimmy Bot]",
+        "[Shell]"
       ].includes(userEmail)
     )
       return userEmail;
@@ -13095,7 +13096,7 @@ Make sure to follow all the instructions while answering questions.
 
         const botMessageRef = push(messagesRef);
         await update(botMessageRef, {
-          User: "[EOD]",
+          User: BOT_USERS.EOD,
           Message: `${result}`,
           Date: Date.now(),
         });
@@ -13133,7 +13134,7 @@ Make sure to follow all the instructions while answering questions.
 
         const botMessageRef = push(messagesRef);
         await update(botMessageRef, {
-          User: "[RNG]",
+          User: BOT_USERS.RNG,
           Message: `🎲 Coin flip result: ${result}`,
           Date: Date.now(),
         });
@@ -14674,6 +14675,7 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
         if (message.toLowerCase().includes("@admin")) {
           // TODO: ask yiyang how to send message to specific channel
           // send message to Staff channel as system
+          console.log("admin mentioned")
         }
       }
 

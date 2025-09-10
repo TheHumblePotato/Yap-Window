@@ -17,7 +17,6 @@
     TIGGYBOT: "[Tiggy Bot]",
     JIMMY: "[Jimmy Bot]",
     SHELL: "[Shell]",
-    HELP: "[HELP]"
   };
   const users = {};
   const email = auth.currentUser.email;
@@ -727,6 +726,7 @@
         "[Tiggy Bot]",
         "[Twelve Angry Men]",
         "[Jimmy Bot]",
+        "[Shell]"
       ].includes(userEmail)
     )
       return userEmail;
@@ -13095,7 +13095,7 @@ Make sure to follow all the instructions while answering questions.
 
         const botMessageRef = push(messagesRef);
         await update(botMessageRef, {
-          User: "[EOD]",
+          User: BOT_USERS.EOD,
           Message: `${result}`,
           Date: Date.now(),
         });
@@ -13133,40 +13133,10 @@ Make sure to follow all the instructions while answering questions.
 
         const botMessageRef = push(messagesRef);
         await update(botMessageRef, {
-          User: "[RNG]",
+          User: BOT_USERS.RNG,
           Message: `🎲 Coin flip result: ${result}`,
           Date: Date.now(),
         });
-      } else if (pureMessage.trim().toLowerCase().startsWith("/help")) {
-        // Show user's /help message
-        const userHelpMessageRef = push(messagesRef);
-        await update(userHelpMessageRef, {
-          User: email,
-          Message: message,
-          Date: Date.now(),
-        });
-        // Send help message from [HELP] bot
-        const helpMessageRef = push(messagesRef);
-        await update(helpMessageRef, {
-          User: BOT_USERS.HELP,
-          Message: `Yap Window Commands:<br>
-<b>/help</b> — Show this help message<br>
-<b>/ai [prompt]</b> — Ask the AI a question<br>
-<b>/eod</b> — Magicly tell you the anser to any question with yes,no, or maybe.<br>
-<b>/coinflip</b> — Flip a coin<br>
-<b>/snake</b> — Play Snake game<br>
-Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacific Time)<br>
-<b>/snake leaderboard</b> — Show Snake leaderboard<br>
-<b>/24</b> — Start a 24 game<br>
-<b>/24 skip</b> — Skip current 24 game<br>
-<b>/24 [answer]</b> — Submit answer for 24 game<br>
-<b>/roll [sides]</b> — Roll a die with [sides] sides<br>
-<b>/tiggy</b> — Interact with Tiggy bot<br>
-<b>/tiggy help</b> — Show Tiggy commands<br>
-<b>/shell [command]</b> — Run a shell command (in Shell/Bot Commands channel)<br>`,
-          Date: Date.now(),
-        });
-        
       } else if (pureMessage.trim().toLowerCase().startsWith("/snake")) {
         const temp_email =
           typeof email !== "undefined"
@@ -14674,6 +14644,7 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
         if (message.toLowerCase().includes("@admin")) {
           // TODO: ask yiyang how to send message to specific channel
           // send message to Staff channel as system
+          console.log("admin mentioned")
         }
       }
 
