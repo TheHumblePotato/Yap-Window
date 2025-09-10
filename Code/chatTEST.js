@@ -13136,12 +13136,15 @@ Make sure to follow all the instructions while answering questions.
           Message: `🎲 Coin flip result: ${result}`,
           Date: Date.now(),
         });
-      } else if (pureMessage.trim().toLowerCase().startsWith("/snake")) {
-        await update(userMessageRef, {
-            User: "[Help]",
-            Message: "this  is a help meassage",
-            Date: Date.now(),
-          });
+      } else if (pureMessage.trim().toLowerCase().startsWith("/help")) {
+        isSending = false;
+        sendButton.disabled = false;
+        const newMessageRef = push(messagesRef);
+        await update(newMessageRef, {
+          User: email,
+          Message: "/24",
+          Date: Date.now(),
+        });
       } else if (pureMessage.trim().toLowerCase().startsWith("/snake")) {
         const temp_email =
           typeof email !== "undefined"
