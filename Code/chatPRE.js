@@ -738,6 +738,7 @@
         "[RNG]",
         "[EOD]",
         "[ADMIN]",
+        "[HELP]",
         "[Snake Game]",
         "[24]",
         "[Prime Bot]",
@@ -747,7 +748,6 @@
         "[Twelve Angry Men]",
         "[Jimmy Bot]",
         "[Jimmy-Bot]", // idk why this is needed but don't delete
-        "[Help]",
         "[Shell]"
       ].includes(userEmail)
     )
@@ -14989,6 +14989,7 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
         "[RNG]",
         "[EOD]",
         "[ADMIN]",
+        "[HELP]",
         "[Snake Game]",
         "[24]",
         "[Prime Bot]",
@@ -15020,6 +15021,7 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
         "RNG",
         "EOD",
         "ADMIN",
+        "HELP",
         "Snake Game",
         "24",
         "Prime Bot",
