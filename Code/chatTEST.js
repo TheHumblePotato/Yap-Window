@@ -17,9 +17,28 @@
     TIGGYBOT: "[Tiggy Bot]",
     JIMMY: "[Jimmy Bot]",
     SHELL: "[Shell]",
+    HELP: "[HELP]"
   };
-  const users = {};
+  let ADMIN_LIST = [];
   const email = auth.currentUser.email;
+  console.log(email);
+  async function getAdmins() {
+    const pathRef = ref(database, '/Chat Info/Staff chat (ADMIN, MOD)/Members');
+    try {
+      const snapshot = await get(pathRef);
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        ADMIN_LIST = data.replaceAll("*", ".").split(",");
+        console.log(ADMIN_LIST);
+        return data;
+      } else {
+        console.log("No data available at this path.");
+        return null;
+      }
+    } catch (error) {
+      console.error("Error retrieving data:", error);
+    }
+  }
   function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
@@ -31,6 +50,7 @@
     alert("Please verify your email before using chat.");
     return;
   }
+  getAdmins();
   const sc = document.createElement("script");
   sc.setAttribute(
     "src",
@@ -718,6 +738,7 @@
         "[RNG]",
         "[EOD]",
         "[ADMIN]",
+        "[HELP]",
         "[Snake Game]",
         "[24]",
         "[Prime Bot]",
@@ -726,6 +747,7 @@
         "[Tiggy Bot]",
         "[Twelve Angry Men]",
         "[Jimmy Bot]",
+        "[Jimmy-Bot]", // idk why this is needed but don't delete
         "[Shell]"
       ].includes(userEmail)
     )
@@ -902,7 +924,8 @@
         mentions.forEach((mention) => {
           if (
             mention.dataset.email === email ||
-            mention.dataset.email === "Everyone"
+            mention.dataset.email === "Everyone" ||
+            (mention.dataset.email === "ADMIN" && ADMIN_LIST.includes(email))
           ) {
             mention.classList.add("highlight");
           }
@@ -965,7 +988,8 @@
         mentions.forEach((mention) => {
           if (
             mention.dataset.email === email ||
-            mention.dataset.email === "Everyone"
+            mention.dataset.email === "Everyone" ||
+            (mention.dataset.email === "ADMIN" && ADMIN_LIST.includes(email))
           ) {
             mention.classList.add("highlight");
           }
@@ -13139,6 +13163,36 @@ Make sure to follow all the instructions while answering questions.
           Message: `🎲 Coin flip result: ${result}`,
           Date: Date.now(),
         });
+      } else if (pureMessage.trim().toLowerCase().startsWith("/help")) {
+        // Show user's /help message
+        const userHelpMessageRef = push(messagesRef);
+        await update(userHelpMessageRef, {
+          User: email,
+          Message: message,
+          Date: Date.now(),
+        });
+        // Send help message from [HELP] bot
+        const helpMessageRef = push(messagesRef);
+        await update(helpMessageRef, {
+          User: BOT_USERS.HELP,
+          Message: `Yap Window Commands:<br>
+<b>/help</b> — Show this help message<br>
+<b>/ai [prompt]</b> — Ask the AI a question<br>
+<b>/eod</b> — Magicly tell you the anser to any question with yes,no, or maybe.<br>
+<b>/coinflip</b> — Flip a coin<br>
+<b>/snake</b> — Play Snake game<br>
+Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacific Time)<br>
+<b>/snake leaderboard</b> — Show Snake leaderboard<br>
+<b>/24</b> — Start a 24 game<br>
+<b>/24 skip</b> — Skip current 24 game<br>
+<b>/24 [answer]</b> — Submit answer for 24 game<br>
+<b>/roll [sides]</b> — Roll a die with [sides] sides<br>
+<b>/tiggy</b> — Interact with Tiggy bot<br>
+<b>/tiggy help</b> — Show Tiggy commands<br>
+<b>/shell [command]</b> — Run a shell command<br>`,
+          Date: Date.now(),
+        });
+        
       } else if (pureMessage.trim().toLowerCase().startsWith("/snake")) {
         const temp_email =
           typeof email !== "undefined"
@@ -14937,6 +14991,7 @@ Make sure to follow all the instructions while answering questions.
         "[RNG]",
         "[EOD]",
         "[ADMIN]",
+        "[HELP]",
         "[Snake Game]",
         "[24]",
         "[Prime Bot]",
@@ -14968,6 +15023,7 @@ Make sure to follow all the instructions while answering questions.
         "RNG",
         "EOD",
         "ADMIN",
+        "HELP",
         "Snake Game",
         "24",
         "Prime Bot",

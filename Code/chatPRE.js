@@ -19,8 +19,26 @@
     SHELL: "[Shell]",
     HELP: "[HELP]"
   };
-  const users = {};
+  let ADMIN_LIST = [];
   const email = auth.currentUser.email;
+  console.log(email);
+  async function getAdmins() {
+    const pathRef = ref(database, '/Chat Info/Staff chat (ADMIN, MOD)/Members');
+    try {
+      const snapshot = await get(pathRef);
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        ADMIN_LIST = data.replaceAll("*", ".").split(",");
+        console.log(ADMIN_LIST);
+        return data;
+      } else {
+        console.log("No data available at this path.");
+        return null;
+      }
+    } catch (error) {
+      console.error("Error retrieving data:", error);
+    }
+  }
   function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
@@ -32,6 +50,7 @@
     alert("Please verify your email before using chat.");
     return;
   }
+  getAdmins();
   const sc = document.createElement("script");
   sc.setAttribute(
     "src",
@@ -719,6 +738,7 @@
         "[RNG]",
         "[EOD]",
         "[ADMIN]",
+        "[HELP]",
         "[Snake Game]",
         "[24]",
         "[Prime Bot]",
@@ -727,6 +747,7 @@
         "[Tiggy Bot]",
         "[Twelve Angry Men]",
         "[Jimmy Bot]",
+        "[Jimmy-Bot]", // idk why this is needed but don't delete
         "[Shell]"
       ].includes(userEmail)
     )
@@ -903,7 +924,8 @@
         mentions.forEach((mention) => {
           if (
             mention.dataset.email === email ||
-            mention.dataset.email === "Everyone"
+            mention.dataset.email === "Everyone" ||
+            (mention.dataset.email === "ADMIN" && ADMIN_LIST.includes(email))
           ) {
             mention.classList.add("highlight");
           }
@@ -966,7 +988,8 @@
         mentions.forEach((mention) => {
           if (
             mention.dataset.email === email ||
-            mention.dataset.email === "Everyone"
+            mention.dataset.email === "Everyone" ||
+            (mention.dataset.email === "ADMIN" && ADMIN_LIST.includes(email))
           ) {
             mention.classList.add("highlight");
           }
@@ -13164,7 +13187,7 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
 <b>/roll [sides]</b> — Roll a die with [sides] sides<br>
 <b>/tiggy</b> — Interact with Tiggy bot<br>
 <b>/tiggy help</b> — Show Tiggy commands<br>
-<b>/shell [command]</b> — Run a shell command (in Shell/Bot Commands channel)<br>`,
+<b>/shell [command]</b> — Run a shell command<br>`,
           Date: Date.now(),
         });
         
@@ -14966,6 +14989,7 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
         "[RNG]",
         "[EOD]",
         "[ADMIN]",
+        "[HELP]",
         "[Snake Game]",
         "[24]",
         "[Prime Bot]",
@@ -14997,6 +15021,7 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
         "RNG",
         "EOD",
         "ADMIN",
+        "HELP",
         "Snake Game",
         "24",
         "Prime Bot",
