@@ -1,5 +1,5 @@
-(async function (
-  var dayOff = false
+(async function () {
+  var dayOff = false;
   var readMessages = {};
   var readAll = true;
   var isDark = false;
@@ -23,7 +23,7 @@
   function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
-  async function isWeekend(){
+  async function isWeekend() {
     const dayOfWeek = new Date().getDay();
     return dayOfWeek === 0 || dayOfWeek === 6;
   }
@@ -927,7 +927,7 @@
           }
         } else if (message.User === email) {
           messageDiv.classList.add("sent");
-        } else if (message.User === "[SYSTEM]"){
+        } else if (message.User === "[SYSTEM]") {
           messageDiv.classList.add("system");
           if (!lastReadMessage || message.id > lastReadMessage) {
             messageDiv.classList.add("unread");
@@ -11577,15 +11577,15 @@
   };
   let curTwentyFour = null;
 
-class Shell {
+  class Shell {
     constructor(db, auth) {
-      this.db              = db;
-      this.auth            = auth;
-      this.basePath        = "shellFS";
-      this.cwdKey          = "cwd";
-      this.currentPath     = "/";
-      this._authReady      = new Promise(res =>
-        onAuthStateChanged(this.auth, user => res(user))
+      this.db = db;
+      this.auth = auth;
+      this.basePath = "shellFS";
+      this.cwdKey = "cwd";
+      this.currentPath = "/";
+      this._authReady = new Promise((res) =>
+        onAuthStateChanged(this.auth, (user) => res(user)),
       );
       this._cwdInitialized = false;
     }
@@ -11593,10 +11593,10 @@ class Shell {
     _isPwDir(path) {
       return path === "/__PASSWORDS__" || path.startsWith("/__PASSWORDS__/");
     }
-  
+
     // --- prompt overlay (text or password) ---
     async _promptText(label, mask = false) {
-      return new Promise(resolve => {
+      return new Promise((resolve) => {
         const style = document.createElement("style");
         style.textContent = `
           #input-overlay { position:fixed;inset:0;
@@ -11615,16 +11615,29 @@ class Shell {
         `;
         document.head.appendChild(style);
 
-        const overlay = document.createElement("div"); overlay.id = "input-overlay";
-        const box     = document.createElement("div"); box.id = "input-box";
-        const lbl     = document.createElement("label"); lbl.textContent = label;
-        const inp     = document.createElement("input"); inp.type = mask ? "password" : "text";
-        const btns    = document.createElement("div"); btns.className = "buttons";
-        const cancel  = document.createElement("button"); cancel.textContent = "Cancel";
-        const ok      = document.createElement("button"); ok.textContent = "OK";
+        const overlay = document.createElement("div");
+        overlay.id = "input-overlay";
+        const box = document.createElement("div");
+        box.id = "input-box";
+        const lbl = document.createElement("label");
+        lbl.textContent = label;
+        const inp = document.createElement("input");
+        inp.type = mask ? "password" : "text";
+        const btns = document.createElement("div");
+        btns.className = "buttons";
+        const cancel = document.createElement("button");
+        cancel.textContent = "Cancel";
+        const ok = document.createElement("button");
+        ok.textContent = "OK";
 
-        cancel.onclick = () => { cleanup(); resolve(null); };
-        ok.onclick     = () => { cleanup(); resolve(inp.value); };
+        cancel.onclick = () => {
+          cleanup();
+          resolve(null);
+        };
+        ok.onclick = () => {
+          cleanup();
+          resolve(inp.value);
+        };
 
         btns.append(cancel, ok);
         box.append(lbl, inp, btns);
@@ -11638,7 +11651,7 @@ class Shell {
         }
       });
     }
-  
+
     // --- Auth & CWD ---
     async _waitForAuth() {
       const u = await this._authReady;
@@ -11649,7 +11662,7 @@ class Shell {
     async initCwd() {
       await this._waitForAuth();
       const snap = await get(ref(this.db, this.cwdKey));
-      if (snap.exists() && typeof snap.val()==="string") {
+      if (snap.exists() && typeof snap.val() === "string") {
         this.currentPath = snap.val();
       } else {
         this.currentPath = "/";
@@ -11657,27 +11670,31 @@ class Shell {
       }
       this._cwdInitialized = true;
     }
-    
+
     async _saveCwd() {
       await set(ref(this.db, this.cwdKey), this.currentPath);
     }
-  
-     // --- Path & key helpers ---
+
+    // --- Path & key helpers ---
     _resolvePath(p) {
-      if (p.startsWith("/")) return p === "/" ? "/" : p.replace(/\/+$/,"");
+      if (p.startsWith("/")) return p === "/" ? "/" : p.replace(/\/+$/, "");
       const parts = this.currentPath.split("/").concat(p.split("/"));
       const stack = [];
       for (const part of parts) {
-        if (!part||part===".") continue;
-        if (part==="..") stack.pop();
+        if (!part || part === ".") continue;
+        if (part === "..") stack.pop();
         else stack.push(part);
       }
-      return "/"+stack.join("/");
+      return "/" + stack.join("/");
     }
 
-    _keyName(n) { return n.replace(/\./g,"\\period"); }
+    _keyName(n) {
+      return n.replace(/\./g, "\\period");
+    }
 
-    _nameKey(k){ return k.replace(/\\period/g,"."); }
+    _nameKey(k) {
+      return k.replace(/\\period/g, ".");
+    }
 
     _emailKey(key) {
       // Converts "user*name@example*com" → "user.name@example.com"
@@ -11690,51 +11707,52 @@ class Shell {
     }
 
     _nodeRef(path) {
-      const parts = path==="/"?[]:path.slice(1).split("/").map(this._keyName);
+      const parts =
+        path === "/" ? [] : path.slice(1).split("/").map(this._keyName);
       return ref(this.db, [this.basePath, ...parts].join("/"));
     }
 
     _pwRef(path) {
-      const key = path==="/"?"root":path.slice(1).split("/").map(this._keyName).join("/");
+      const key =
+        path === "/"
+          ? "root"
+          : path.slice(1).split("/").map(this._keyName).join("/");
       return ref(this.db, `${this.basePath}/__PASSWORDS__/${key}`);
     }
-  
-     // --- Main exec (pipes & >) ---
-      async exec(cmdLine) {
-        await this._waitForAuth();
-        if (!this._cwdInitialized) await this.initCwd();
 
-        const segs = cmdLine.split("|").map(s => s.trim());
-        let input = "";
+    // --- Main exec (pipes & >) ---
+    async exec(cmdLine) {
+      await this._waitForAuth();
+      if (!this._cwdInitialized) await this.initCwd();
 
-        for (let i = 0; i < segs.length; i++) {
-          let s = segs[i], redir = null;
+      const segs = cmdLine.split("|").map((s) => s.trim());
+      let input = "";
 
-          // handle output redirection only on the last segment
-          if (i === segs.length - 1) {
-            const m = s.match(/(.*)>\s*(\S+)$/);
-            if (m) {
-              s = m[1].trim();
-              redir = m[2];
-            }
-          }
+      for (let i = 0; i < segs.length; i++) {
+        let s = segs[i],
+          redir = null;
 
-          // run the segment, feeding in previous stdout
-          const out = await this._run(s, input);
-          input = out;
-
-          // if redirection was requested, write to that file
-          if (redir) {
-            await set(
-              this._nodeRef(this._resolvePath(redir)),
-              input
-            );
+        // handle output redirection only on the last segment
+        if (i === segs.length - 1) {
+          const m = s.match(/(.*)>\s*(\S+)$/);
+          if (m) {
+            s = m[1].trim();
+            redir = m[2];
           }
         }
 
-        return input;
+        // run the segment, feeding in previous stdout
+        const out = await this._run(s, input);
+        input = out;
+
+        // if redirection was requested, write to that file
+        if (redir) {
+          await set(this._nodeRef(this._resolvePath(redir)), input);
+        }
       }
 
+      return input;
+    }
 
     // --- Dispatch with stdin-as-filename fallback for cat, no wget ---
     async _run(segment, stdin) {
@@ -11760,7 +11778,7 @@ class Shell {
 
         case "ls": {
           const showAll = args.includes("-a");
-          const dirArg  = args.find(a => !a.startsWith("-")) || "";
+          const dirArg = args.find((a) => !a.startsWith("-")) || "";
           return this._ls(dirArg, showAll, isSudo);
         }
 
@@ -11778,9 +11796,9 @@ class Shell {
 
         case "rm":
           return this._rm(
-            args.find(a => a !== "-r"),
+            args.find((a) => a !== "-r"),
             args.includes("-r"),
-            isSudo
+            isSudo,
           );
 
         case "cat":
@@ -11814,7 +11832,6 @@ class Shell {
       }
     }
 
-  
     // --- Help (escaped < >) ---
     async _help() {
       return [
@@ -11839,59 +11856,58 @@ class Shell {
         "  help, -h                    Show this help text",
         "  pwd                         Print working directory",
         "",
-        "Supports piping (|) & redirect (>) like Unix."
+        "Supports piping (|) & redirect (>) like Unix.",
       ].join("\n");
     }
-  
+
     // --- mkdir with -s prefix ---
     async _mkdirFlagS(args, isSudo) {
-      const needPwd = args[0]==="-s";
-      const dir     = needPwd?args[1]:args[0];
+      const needPwd = args[0] === "-s";
+      const dir = needPwd ? args[1] : args[0];
       return this._mkdir(dir, needPwd, isSudo);
     }
 
     async _mkdir(dir, needPwd, isSudo) {
       if (!dir) return `mkdir: missing operand`;
-      const path   = this._resolvePath(dir);
-      const parent = path.substring(0,path.lastIndexOf("/"))||"/";
-      const key    = this._keyName(path.split("/").pop());
-      const psnap  = await get(this._nodeRef(parent));
+      const path = this._resolvePath(dir);
+      const parent = path.substring(0, path.lastIndexOf("/")) || "/";
+      const key = this._keyName(path.split("/").pop());
+      const psnap = await get(this._nodeRef(parent));
       if (!psnap.exists()) return `mkdir: parent not found: ${dir}`;
-      const ex = psnap.val()||{};
-      if (ex[key]!==undefined) return `mkdir: name in use: ${dir}`;
+      const ex = psnap.val() || {};
+      if (ex[key] !== undefined) return `mkdir: name in use: ${dir}`;
 
       if (needPwd && !isSudo) {
         const p1 = await this._promptText(`Set password for '${dir}':`, true);
         if (!p1) return `mkdir: cancelled`;
         const p2 = await this._promptText(`Confirm password:`, true);
-        if (p1!==p2) return `mkdir: passwords do not match`;
+        if (p1 !== p2) return `mkdir: passwords do not match`;
         await set(this._pwRef(path), p1);
       }
 
       await update(this._nodeRef(parent), {
-        [key]: { [this._keyName(".DONOTDELETE")]: "NODELETE" }
+        [key]: { [this._keyName(".DONOTDELETE")]: "NODELETE" },
       });
-      return `Directory '${dir}' created${needPwd?" (password‑protected)":""}`;
+      return `Directory '${dir}' created${needPwd ? " (password‑protected)" : ""}`;
     }
-  
+
     async _ls(dir = "", showAll = false, isSudo = false) {
       const path = this._resolvePath(dir);
       const snap = await get(this._nodeRef(path));
-      if (!snap.exists()) 
-        return `ls: no such file or dir: ${dir}`;
+      if (!snap.exists()) return `ls: no such file or dir: ${dir}`;
 
       // block metadata unless sudo
-      if (this._isPwDir(path) && !isSudo) 
+      if (this._isPwDir(path) && !isSudo)
         return `ls: permission denied to access metadata`;
 
       if (!isSudo) {
         const pwdSnap = await get(this._pwRef(path));
         if (pwdSnap.exists()) {
           const attempt = await this._promptText(
-            `Password for '${dir}':`, true
+            `Password for '${dir}':`,
+            true,
           );
-          if (attempt !== pwdSnap.val()) 
-            return `ls: incorrect password`;
+          if (attempt !== pwdSnap.val()) return `ls: incorrect password`;
         }
       }
 
@@ -11899,8 +11915,7 @@ class Shell {
       // single file case
       if (typeof val === "string") {
         const name = this._nameKey(dir || path.split("/").pop());
-        if (!showAll && name.startsWith(".")) 
-          return `(no files)`;
+        if (!showAll && name.startsWith(".")) return `(no files)`;
         return `📄 ${name}`;
       }
 
@@ -11908,36 +11923,33 @@ class Shell {
       let keys = Object.keys(val);
       // filter out dot-files unless showAll
       if (!showAll) {
-        keys = keys.filter(k => !this._nameKey(k).startsWith("."));
+        keys = keys.filter((k) => !this._nameKey(k).startsWith("."));
       }
-      if (!keys.length) 
-        return `(empty directory)`;
+      if (!keys.length) return `(empty directory)`;
 
       // build entries
       const entries = await Promise.all(
-        keys.map(async k => {
+        keys.map(async (k) => {
           const nm = this._nameKey(k);
           const cp = path === "/" ? `/${nm}` : `${path}/${nm}`;
           const cs = await get(this._nodeRef(cp));
           const isFile = cs.exists() && typeof cs.val() === "string";
           return { nm, isFile };
-        })
+        }),
       );
 
       // sort: directories first, then files, each alphabetically
       entries.sort((a, b) => {
-        if (a.isFile === b.isFile) 
-          return a.nm.localeCompare(b.nm);
+        if (a.isFile === b.isFile) return a.nm.localeCompare(b.nm);
         return a.isFile ? 1 : -1;
       });
 
       // format output
       return entries
-        .map(e => (e.isFile ? `📄 ${e.nm}` : `📁 ${e.nm}`))
+        .map((e) => (e.isFile ? `📄 ${e.nm}` : `📁 ${e.nm}`))
         .join("\n");
     }
 
-  
     // --- file with password check ---
     async _file(target, isSudo) {
       if (!target) return `file: missing operand`;
@@ -11948,22 +11960,25 @@ class Shell {
       if (this._isPwDir(path) && !isSudo) {
         return `file: permission denied to access metadata`;
       }
-  
+
       if (!isSudo) {
         const pwdSnap = await get(this._pwRef(path));
         if (pwdSnap.exists()) {
-          const attempt = await this._promptText(`Password for '${target}':`, true);
+          const attempt = await this._promptText(
+            `Password for '${target}':`,
+            true,
+          );
           if (attempt !== pwdSnap.val()) {
             return `file: incorrect password`;
           }
         }
       }
-  
-      return (typeof snap.val() === "string")
+
+      return typeof snap.val() === "string"
         ? `📄 '${target}' is a file`
         : `📁 '${target}' is a directory`;
     }
-  
+
     // --- cd with password check ---
     async _cd(dir, isSudo) {
       if (!dir) return `cd: missing operand`;
@@ -11975,7 +11990,7 @@ class Shell {
       if (this._isPwDir(path) && !isSudo) {
         return `cd: permission denied to access metadata`;
       }
-  
+
       const pwdSnap = await get(this._pwRef(path));
       if (pwdSnap.exists()) {
         const attempt = await this._promptText(`Password for '${dir}':`, true);
@@ -11983,26 +11998,28 @@ class Shell {
           return `cd: incorrect password`;
         }
       }
-  
+
       this.currentPath = path;
       await this._saveCwd();
       return `Changed directory to '${dir}'`;
     }
-  
+
     // --- cp ---
     async _cp(src, dst) {
       if (!src || !dst) return `cp: missing operand`;
-      const sp = this._resolvePath(src), dp = this._resolvePath(dst);
+      const sp = this._resolvePath(src),
+        dp = this._resolvePath(dst);
       const ss = await get(this._nodeRef(sp));
       if (!ss.exists()) return `cp: no such file or dir: ${src}`;
       await set(this._nodeRef(dp), ss.val());
       return `Copied '${src}' to '${dst}'`;
     }
-  
+
     // --- mv with directory detection ---
     async _mv(src, dst) {
       if (!src || !dst) return `mv: missing operand`;
-      const sp = this._resolvePath(src), dp = this._resolvePath(dst);
+      const sp = this._resolvePath(src),
+        dp = this._resolvePath(dst);
       const ss = await get(this._nodeRef(sp));
       if (!ss.exists()) return `mv: no such file or dir: ${src}`;
       const ds = await get(this._nodeRef(dp));
@@ -12015,7 +12032,7 @@ class Shell {
       await this._rm(src, typeof ss.val() === "object", true);
       return `Moved '${src}' to '${this._nameKey(final.split("/").pop())}'`;
     }
-  
+
     // --- rm with placeholder & password ---
     async _rm(target, recursive = false, isSudo = false) {
       if (!target) return `rm: missing operand`;
@@ -12039,7 +12056,10 @@ class Shell {
       if (!isSudo) {
         const pwdSnap = await get(this._pwRef(path));
         if (pwdSnap.exists()) {
-          const attempt = await this._promptText(`Password for '${target}':`, true);
+          const attempt = await this._promptText(
+            `Password for '${target}':`,
+            true,
+          );
           if (attempt !== pwdSnap.val()) {
             return `rm: incorrect password`;
           }
@@ -12092,15 +12112,15 @@ class Shell {
       }
       // delete the node
       await remove(this._nodeRef(path));
-      
+
       // --- New: also remove its password entry ---
       const pwdRef = this._pwRef(path);
       const pwCheck = await get(pwdRef);
       if (pwCheck.exists()) {
         await remove(pwdRef);
       }
-    }    
-  
+    }
+
     // --- cat with password ---
     async _cat(file, isSudo) {
       if (!file) return `cat: missing operand`;
@@ -12111,44 +12131,50 @@ class Shell {
       if (this._isPwDir(path) && !isSudo) {
         return `cat: permission denied to access metadata`;
       }
-  
+
       if (!isSudo) {
         const pwdSnap = await get(this._pwRef(path));
         if (pwdSnap.exists()) {
-          const attempt = await this._promptText(`Password for '${file}':`, true);
+          const attempt = await this._promptText(
+            `Password for '${file}':`,
+            true,
+          );
           if (attempt !== pwdSnap.val()) {
             return `cat: incorrect password`;
           }
         }
       }
-  
+
       if (typeof snap.val() === "object") {
         return `cat: is a directory: ${file}`;
       }
       return snap.val();
     }
-  
+
     // --- vim with -s prefix ---
     async _vimFlagS(args, isSudo) {
-      const needPwd = args[0]==="-s";
-      const file    = needPwd?args[1]:args[0];
+      const needPwd = args[0] === "-s";
+      const file = needPwd ? args[1] : args[0];
       return this._vim(file, needPwd, isSudo);
     }
-    
+
     async _vim(file, needPwd, isSudo) {
       if (!file) return `vim: missing operand`;
       const path = this._resolvePath(file);
       const node = this._nodeRef(path);
       const snap = await get(node);
 
-      if (snap.exists()&&typeof snap.val()==="object")
+      if (snap.exists() && typeof snap.val() === "object")
         return `vim: cannot edit directory: ${file}`;
 
       if (!isSudo) {
         const pwSnap = await get(this._pwRef(path));
         if (pwSnap.exists()) {
-          const attempt = await this._promptText(`Password for '${file}':`, true);
-          if (attempt!==pwSnap.val()) return `vim: incorrect password`;
+          const attempt = await this._promptText(
+            `Password for '${file}':`,
+            true,
+          );
+          if (attempt !== pwSnap.val()) return `vim: incorrect password`;
         }
       }
 
@@ -12156,52 +12182,75 @@ class Shell {
         const p1 = await this._promptText(`Set password for '${file}':`, true);
         if (!p1) return `vim: cancelled`;
         const p2 = await this._promptText(`Confirm password:`, true);
-        if (p1!==p2) return `vim: passwords do not match`;
+        if (p1 !== p2) return `vim: passwords do not match`;
         await set(this._pwRef(path), p1);
       }
 
-      let existing = snap.exists()?snap.val():"";
+      let existing = snap.exists() ? snap.val() : "";
       await set(node, existing);
 
       // Editor overlay...
-      const edited = await new Promise(res => {
+      const edited = await new Promise((res) => {
         const ov = document.createElement("div");
-        Object.assign(ov.style,{
-          position:"fixed",inset:0,
-          background:"rgba(0,0,0,0.85)",
-          display:"flex",alignItems:"center",justifyContent:"center",
-          zIndex:2147483647
+        Object.assign(ov.style, {
+          position: "fixed",
+          inset: 0,
+          background: "rgba(0,0,0,0.85)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 2147483647,
         });
         const box = document.createElement("div");
-        Object.assign(box.style,{
-          width:"80%",maxWidth:"800px",height:"80vh",
-          background:"#111",padding:"20px",borderRadius:"8px",
-          display:"flex",flexDirection:"column"
+        Object.assign(box.style, {
+          width: "80%",
+          maxWidth: "800px",
+          height: "80vh",
+          background: "#111",
+          padding: "20px",
+          borderRadius: "8px",
+          display: "flex",
+          flexDirection: "column",
         });
         const ta = document.createElement("textarea");
         ta.value = existing;
-        Object.assign(ta.style,{
-          flex:1,background:"#222",color:"#eee",
-          border:"none",padding:"10px",fontFamily:"monospace",resize:"none"
+        Object.assign(ta.style, {
+          flex: 1,
+          background: "#222",
+          color: "#eee",
+          border: "none",
+          padding: "10px",
+          fontFamily: "monospace",
+          resize: "none",
         });
         const ctr = document.createElement("div");
-        Object.assign(ctr.style,{textAlign:"right",marginTop:"10px"});
+        Object.assign(ctr.style, { textAlign: "right", marginTop: "10px" });
         const cbtn = document.createElement("button");
-        cbtn.textContent = "Cancel"; cbtn.onclick = ()=>{ov.remove();res(null)};
+        cbtn.textContent = "Cancel";
+        cbtn.onclick = () => {
+          ov.remove();
+          res(null);
+        };
         const sbtn = document.createElement("button");
-        sbtn.textContent = "Save";   sbtn.onclick = ()=>{ov.remove();res(ta.value)};
-        ctr.append(cbtn, sbtn); box.append(ta, ctr); ov.append(box);
+        sbtn.textContent = "Save";
+        sbtn.onclick = () => {
+          ov.remove();
+          res(ta.value);
+        };
+        ctr.append(cbtn, sbtn);
+        box.append(ta, ctr);
+        ov.append(box);
         document.body.append(ov);
       });
 
-      if (edited===null) return `vim: editing canceled`;
+      if (edited === null) return `vim: editing canceled`;
       await set(node, edited);
       return `File '${file}' saved.`;
     }
-  
+
     // --- ban/unban/listbanned ---
     async _ban(email, isSudo) {
-      if (!isSudo) return `ban: permission denied to ban users`
+      if (!isSudo) return `ban: permission denied to ban users`;
       if (!email) return `ban: missing operand`;
       const key = this._keyEmail(email);
       await update(ref(this.db, "ban"), { [key]: true });
@@ -12209,7 +12258,7 @@ class Shell {
     }
 
     async _unban(email, isSudo) {
-      if (!isSudo) return `unban: permission denied to unban users`
+      if (!isSudo) return `unban: permission denied to unban users`;
       if (!email) return `unban: missing operand`;
       const key = this._keyEmail(email);
       await remove(ref(this.db, `ban/${key}`));
@@ -12217,10 +12266,12 @@ class Shell {
     }
 
     async _listBanned(isSudo) {
-      if (!isSudo) return `listbanned: permission denied to list banned users`
+      if (!isSudo) return `listbanned: permission denied to list banned users`;
       const snap = await get(ref(this.db, "ban"));
       if (!snap.exists()) return `(no banned users)`;
-      return Object.keys(snap.val()).map(k => this._emailKey(k)).join("\n");
+      return Object.keys(snap.val())
+        .map((k) => this._emailKey(k))
+        .join("\n");
     }
   }
 
@@ -12390,29 +12441,29 @@ class Shell {
         box-shadow: 0 0 6px rgba(0,0,0,0.3);
       }
       `;
-      const styleEl = document.createElement('style');
+      const styleEl = document.createElement("style");
       styleEl.textContent = css;
       document.head.appendChild(styleEl);
-    
+
       // 2. Build overlay elements
-      const overlay = document.createElement('div');
-      overlay.id = 'pw-overlay';
-    
-      const box = document.createElement('div');
-      box.id = 'pw-box';
-    
-      const label = document.createElement('label');
-      label.setAttribute('for', 'pw-input');
-      label.textContent = 'Enter Sudo Password:';
-    
-      const input = document.createElement('input');
-      input.type = 'password';
-      input.id = 'pw-input';
-    
-      const button = document.createElement('button');
-      button.id = 'pw-submit';
-      button.textContent = 'Unlock';
-    
+      const overlay = document.createElement("div");
+      overlay.id = "pw-overlay";
+
+      const box = document.createElement("div");
+      box.id = "pw-box";
+
+      const label = document.createElement("label");
+      label.setAttribute("for", "pw-input");
+      label.textContent = "Enter Sudo Password:";
+
+      const input = document.createElement("input");
+      input.type = "password";
+      input.id = "pw-input";
+
+      const button = document.createElement("button");
+      button.id = "pw-submit";
+      button.textContent = "Unlock";
+
       // Assemble
       box.appendChild(label);
       box.appendChild(input);
@@ -12420,11 +12471,15 @@ class Shell {
       overlay.appendChild(box);
       document.body.appendChild(overlay);
 
-      button.addEventListener('click', () => {
-        const entered = input.value;
-        overlay.remove();
-        resolve(entered);
-      }, { once: true });
+      button.addEventListener(
+        "click",
+        () => {
+          const entered = input.value;
+          overlay.remove();
+          resolve(entered);
+        },
+        { once: true },
+      );
     });
   }
 
@@ -13114,9 +13169,9 @@ Make sure to follow all the instructions while answering questions.
             const pushMessage = async (text) => {
               const msgRef = push(messagesRef);
               await update(msgRef, {
-          User: BOT_USERS.SNAKE,
-          Message: text,
-          Date: Date.now(),
+                User: BOT_USERS.SNAKE,
+                Message: text,
+                Date: Date.now(),
               });
             };
 
@@ -13127,8 +13182,8 @@ Make sure to follow all the instructions while answering questions.
             } else {
               const topPlayers = sortedScores.slice(0, 10);
               for (let i = 0; i < topPlayers.length; i++) {
-          let playerText = `${i + 1}. ${topPlayers[i].email.replace(/\*/g, ".")}: ${topPlayers[i].score}`;
-          await pushMessage(playerText);
+                let playerText = `${i + 1}. ${topPlayers[i].email.replace(/\*/g, ".")}: ${topPlayers[i].score}`;
+                await pushMessage(playerText);
               }
             }
           } catch (error) {
@@ -14486,25 +14541,26 @@ Make sure to follow all the instructions while answering questions.
         }
       } else if (pureMessage.trim().toLowerCase().startsWith("/shell")) {
         // Select the currently active channel element
-        const selectedServer = document.querySelector('.server.selected');
+        const selectedServer = document.querySelector(".server.selected");
         const serverName = selectedServer?.childNodes[0]?.textContent.trim();
 
         // Check if the active channel element exists
         if (serverName) {
-          console.log('Current Channel Name:', serverName);
+          console.log("Current Channel Name:", serverName);
         } else {
-          console.log('No active channel found.');
+          console.log("No active channel found.");
         }
 
-        if (serverName !== "Shell" && serverName !== "Bot Commands"){
+        if (serverName !== "Shell" && serverName !== "Bot Commands") {
           const errorMessageRef = push(messagesRef);
           await update(errorMessageRef, {
             User: BOT_USERS.SHELL,
-            Message: "Shell can only be used in \"Shell\" and \"Bot Commands\" channels!",
-            Date: Date.now()
+            Message:
+              'Shell can only be used in "Shell" and "Bot Commands" channels!',
+            Date: Date.now(),
           });
-        } else{
-          console.log("/shell activated")
+        } else {
+          console.log("/shell activated");
           const command = pureMessage.trim().slice(7);
           let noCommand = false;
           let useSudo = false;
@@ -14532,7 +14588,7 @@ Make sure to follow all the instructions while answering questions.
           } else if (command.trim().startsWith("sudo")) {
             // sudo command
             // check password
-            console.log("getting entered password")
+            console.log("getting entered password");
             let enteredPassword = await getEnteredPassword();
             if (
               sha256(enteredPassword) ===
@@ -14584,7 +14640,7 @@ Make sure to follow all the instructions while answering questions.
           Message: message,
           Date: Date.now(),
         });
-        if (message.toLowerCase().includes("@admin")){
+        if (message.toLowerCase().includes("@admin")) {
           // TODO: ask yiyang how to send message to specific channel
           // send message to Staff channel as system
         }
@@ -16355,7 +16411,6 @@ Make sure to follow all the instructions while answering questions.
     });
     await loadMessages(channelName);
   }
-
 
   checkForUpdates();
   setupGlobalFileViewer();
