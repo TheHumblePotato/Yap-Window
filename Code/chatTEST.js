@@ -28,7 +28,7 @@
       const snapshot = await get(pathRef);
       if (snapshot.exists()) {
         const data = snapshot.val();
-        ADMIN_LIST = data.split(",").replaceAll("*", ".");
+        ADMIN_LIST = data.replaceAll("*", ".").split(",");
         console.log(ADMIN_LIST);
         return data;
       } else {
