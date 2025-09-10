@@ -12493,6 +12493,8 @@
     let message = document
       .getElementById("message-input")
       .innerHTML.substring(0, 5000);
+    // Detect links only after message is sent, not while typing
+    message = autoDetectLinks(message);
 
     let textContent = document
       .getElementById("message-input")
@@ -15632,9 +15634,8 @@ Make sure to follow all the instructions while answering questions.
     }
   });
 
-  document
-    .getElementById("message-input")
-    .addEventListener("input", function () {});
+  // Remove link detection while typing
+  // document.getElementById("message-input").addEventListener("input", function () {});
 
   function autoDetectLinks(text) {
     const urlRegex =
