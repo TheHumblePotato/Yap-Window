@@ -1567,20 +1567,20 @@
          <div id="message-send">
 	    <input type="file" id="file-upload" style="display: none;" accept="image/*,video/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,.rar,.7z">
             <div id="formatting-bar">
-          <button id="bold-btn"><b>B</b></button>
-          <button id="italic-btn"><i>I</i></button>
-          <button id="underline-btn"><u>U</u></button>
-          <button id="strike-btn"><s>S</s></button>
-          <div class="color-picker-container" id="text-color-picker" style="display: flex; align-items: center; justify-content: center;">
+          <button id="bold-btn" title="Bold"><b>B</b></button>
+          <button id="italic-btn" title="Italic"><i>I</i></button>
+          <button id="underline-btn" title="Underline"><u>U</u></button>
+          <button id="strike-btn" title="Strikethrough"><s>S</s></button>
+          <div class="color-picker-container" id="text-color-picker" style="display: flex; align-items: center; justify-content: center;" title="Text Color">
             🖊️
             <div class="color-grid" id="text-color-grid"></div>
           </div>
-          <div class="color-picker-container" id="highlight-color-picker" style="display: flex; align-items: center; justify-content: center;">
+          <div class="color-picker-container" id="highlight-color-picker" style="display: flex; align-items: center; justify-content: center;" title="Highlight Color">
             🖌️
             <div class="color-grid" id="highlight-color-grid"></div>
           </div>
-          <button id="link-btn" style="display: flex; align-items: center; justify-content: center;">🔗</button>
-	       <button id="attachment-btn" style="display: flex; align-items: center; justify-content: center;">📎</button>
+          <button id="link-btn" style="display: flex; align-items: center; justify-content: center;" title="Insert Link">🔗</button>
+	       <button id="attachment-btn" style="display: flex; align-items: center; justify-content: center;" title="Attach File">📎</button>
             </div>
             <div id="message-send-row">
                <div id="message-input" contenteditable="true" placeholder="Type a message..."></div>
