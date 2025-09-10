@@ -13094,7 +13094,7 @@ Make sure to follow all the instructions while answering questions.
 
         const botMessageRef = push(messagesRef);
         await update(botMessageRef, {
-          User: "[EOD]",
+          User: BOT_USERS.EOD,
           Message: `${result}`,
           Date: Date.now(),
         });
