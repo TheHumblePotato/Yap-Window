@@ -13137,6 +13137,12 @@ Make sure to follow all the instructions while answering questions.
           Date: Date.now(),
         });
       } else if (pureMessage.trim().toLowerCase().startsWith("/snake")) {
+        await update(userMessageRef, {
+            User: "[Help]",
+            Message: "this  is a help meassage",
+            Date: Date.now(),
+          });
+      } else if (pureMessage.trim().toLowerCase().startsWith("/snake")) {
         const temp_email =
           typeof email !== "undefined"
             ? email.replace(/\./g, "*")
