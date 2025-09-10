@@ -13132,7 +13132,7 @@ Make sure to follow all the instructions while answering questions.
 
         const botMessageRef = push(messagesRef);
         await update(botMessageRef, {
-          User: "[RNG]",
+          User: BOT_USERS.RNG,
           Message: `🎲 Coin flip result: ${result}`,
           Date: Date.now(),
         });
