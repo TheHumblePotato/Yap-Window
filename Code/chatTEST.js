@@ -13137,12 +13137,11 @@ Make sure to follow all the instructions while answering questions.
           Date: Date.now(),
         });
       } else if (pureMessage.trim().toLowerCase().startsWith("/help")) {
-        isSending = false;
-        sendButton.disabled = false;
-        const newMessageRef = push(messagesRef);
-        await update(newMessageRef, {
+        console.log("Help command detected");
+        const userMessageRef = push(messagesRef);
+        await update(userMessageRef, {
           User: email,
-          Message: "/24",
+          Message: "Hello",
           Date: Date.now(),
         });
       } else if (pureMessage.trim().toLowerCase().startsWith("/snake")) {
