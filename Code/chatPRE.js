@@ -14643,6 +14643,7 @@ Make sure to follow all the instructions while answering questions.
         if (message.toLowerCase().includes("@admin")) {
           // TODO: ask yiyang how to send message to specific channel
           // send message to Staff channel as system
+          console.log("admin mentioned")
         }
       }
 
