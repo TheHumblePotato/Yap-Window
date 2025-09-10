@@ -726,6 +726,7 @@
         "[Tiggy Bot]",
         "[Twelve Angry Men]",
         "[Jimmy Bot]",
+        "[Shell]"
       ].includes(userEmail)
     )
       return userEmail;
