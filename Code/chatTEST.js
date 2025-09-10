@@ -13137,13 +13137,29 @@ Make sure to follow all the instructions while answering questions.
           Date: Date.now(),
         });
       } else if (pureMessage.trim().toLowerCase().startsWith("/help")) {
-        console.log("Help command detected");
-        const userMessageRef = push(messagesRef);
-        await update(userMessageRef, {
-          User: email,
-          Message: "Hello",
+        // Send help message from [HELP] bot
+        const helpMessageRef = push(messagesRef);
+        await update(helpMessageRef, {
+          User: "[HELP]",
+          Message: `Yap Window Commands:<br>
+<b>/help</b> — Show this help message<br>
+<b>/ai [prompt]</b> — Ask the AI a question<br>
+<b>/eod</b> — End of Day summary<br>
+<b>/coinflip</b> — Flip a coin<br>
+<b>/snake</b> — Play Snake game<br>
+<b>/snake leaderboard</b> — Show Snake leaderboard<br>
+<b>/24</b> — Start a 24 game<br>
+<b>/24 skip</b> — Skip current 24 game<br>
+<b>/24 [answer]</b> — Submit answer for 24 game<br>
+<b>/roll [sides]</b> — Roll a die with [sides] sides<br>
+<b>/tiggy</b> — Interact with Tiggy bot<br>
+<b>/tiggy help</b> — Show Tiggy commands<br>
+<b>/shell [command]</b> — Run a shell command (in Shell/Bot Commands channel)<br>
+<b>@admin</b> — Mention admin<br>
+...and more!`,
           Date: Date.now(),
         });
+        
       } else if (pureMessage.trim().toLowerCase().startsWith("/snake")) {
         const temp_email =
           typeof email !== "undefined"
