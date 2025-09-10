@@ -12548,7 +12548,10 @@
       style="text-decoration:underline;color:${isDark ? "#66b2ff" : "#007bff"};">📎 ${safeName}</a>`;
       }
     });
-    message = joypixels.shortnameToImage(message);
+    // Only convert emoji shortnames if user entered emoji mode (typed ':')
+    if (emojiMode) {
+      message = joypixels.shortnameToImage(message);
+    }
     const div = document.createElement("div");
     div.innerHTML = message;
     message = div.innerHTML;
@@ -12558,7 +12561,7 @@
     clearAttachments();
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
 
-    if (message) {
+  if (message) {
       // Check which option is selected in the dropdown
       const gDropdown = document.getElementById("g-dropdown");
       const selectedOption = gDropdown.querySelector(
@@ -14716,6 +14719,8 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
     document.getElementById("bookmarklet-gui").scrollTop = 0;
     isSending = false;
     sendButton.disabled = false;
+  // exit emoji mode after sending
+  exitEmojiMode();
   }
 
   function formatDate(timestamp) {
@@ -14759,9 +14764,9 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
     .getElementById("message-input")
     .addEventListener("input", function (e) {
       if (
-        e.inputType === "insertFromPaste" ||
-        (e.inputType === "insertText" && (e.data === " " || e.data === "\n"))
-      ) {
+          e.inputType === "insertFromPaste" ||
+          (e.inputType === "insertText" && (e.data === " " || e.data === "\n"))
+        ) {
         const selection = window.getSelection();
         const range = selection.getRangeAt(0);
 
@@ -14771,17 +14776,11 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
         preCaretRange.setEnd(range.endContainer, range.endOffset);
         const caretPosition = preCaretRange.toString().length;
 
-        processLinksInInput();
-
-        let message = document
-          .getElementById("message-input")
-          .innerHTML.substring(0, 2500);
-
-        message = joypixels.shortnameToImage(message);
-
-        setTimeout(() => {
-          setCursorPositionInContentEditable(messageInput, caretPosition);
-        }, 0);
+        // Do not process links while typing to avoid stutters.
+        // If user pasted content, we still convert emoji shortnames only if user is in emoji mode.
+        if (emojiMode) {
+          processEmojisInInput();
+        }
       }
     });
 
@@ -14839,61 +14838,44 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
     selection.addRange(range);
     element.focus();
   }
+  // NOTE: live link conversion while typing was removed to avoid typing stutters.
+  // Links are detected/converted only at send time via `autoDetectLinks()` in sendMessage().
 
-  function processLinksInInput() {
-    const messageInput = document.getElementById("message-input");
-    const div = document.createElement("div");
-    div.innerHTML = messageInput.innerHTML;
-    let changed = false;
+  // Emoji mode: only check/convert shortnames to images after the user types ':'
+  let emojiMode = false;
+  let emojiModeTimeout = null;
 
-    const walker = document.createTreeWalker(div, NodeFilter.SHOW_TEXT);
-    const nodesToProcess = [];
-    let node;
+  function enterEmojiMode() {
+    emojiMode = true;
+    if (emojiModeTimeout) clearTimeout(emojiModeTimeout);
+    emojiModeTimeout = setTimeout(() => {
+      emojiMode = false;
+      emojiModeTimeout = null;
+    }, 5000); // automatically exit after 5s of inactivity
+  }
 
-    while ((node = walker.nextNode())) {
-      if (node.parentNode.tagName !== "A") {
-        nodesToProcess.push(node);
-      }
-    }
-
-    for (const textNode of nodesToProcess) {
-      const text = textNode.nodeValue;
-
-      const words = text.split(/(\s+)/);
-      let hasLinks = false;
-
-      for (let i = 0; i < words.length; i += 2) {
-        const word = words[i];
-        if (word && isValidUrl(word)) {
-          hasLinks = true;
-          words[i] = createLinkMarkup(word);
-        }
-      }
-
-      if (hasLinks) {
-        const fragment = document.createDocumentFragment();
-        const tempDiv = document.createElement("div");
-        tempDiv.innerHTML = words.join("");
-
-        while (tempDiv.firstChild) {
-          fragment.appendChild(tempDiv.firstChild);
-        }
-
-        textNode.parentNode.replaceChild(fragment, textNode);
-        changed = true;
-      }
-    }
-
-    if (changed) {
-      const oldValue = messageInput.innerHTML;
-      const newValue = div.innerHTML;
-
-      if (oldValue !== newValue) {
-        messageInput.innerHTML = newValue;
-      }
+  function exitEmojiMode() {
+    emojiMode = false;
+    if (emojiModeTimeout) {
+      clearTimeout(emojiModeTimeout);
+      emojiModeTimeout = null;
     }
   }
 
+  function processEmojisInInput() {
+    const messageInput = document.getElementById("message-input");
+    const caretPosition = getCaretCharacterOffsetWithin(messageInput);
+
+    let message = messageInput.innerHTML.substring(0, 2500);
+    const converted = joypixels.shortnameToImage(message);
+
+    if (converted !== message) {
+      messageInput.innerHTML = converted;
+      setTimeout(() => {
+        setCursorPositionInContentEditable(messageInput, caretPosition);
+      }, 0);
+    }
+  }
   function isValidUrl(text) {
     const urlPattern =
       /^(https?:\/\/)?(www\.)?([a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(\/\S*)?$/i;
@@ -14908,9 +14890,7 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
     return `<a href="${href}" target="_blank" rel="noopener noreferrer">${url}</a>`;
   }
 
-  window.addEventListener("DOMContentLoaded", function () {
-    processLinksInInput();
-  });
+  // previously we converted links on DOMContentLoaded; keep links only processed at send time
   let savedSelection = null;
 
   function saveSelection() {
@@ -14959,6 +14939,13 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
   let isNavigating = false;
 
   messageInput.addEventListener("input", async function (e) {
+    // If user typed a ':' enable emojiMode so subsequent shortname sequences are converted.
+    // This keeps emoji processing off unless the user explicitly starts an emoji.
+    if (e.inputType === "insertText" && e.data === ":") {
+      enterEmojiMode();
+      // run a quick emoji conversion
+      processEmojisInInput();
+    }
     if (isNavigating) {
       isNavigating = false;
       return;
@@ -15000,6 +14987,7 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
         "[Tiggy Bot]",
         "[Twelve Angry Men]",
         "[Foreman]",
+        "[Juror 1]",
         "[Juror 2]",
         "[Juror 3]",
         "[Juror 4]",
@@ -15032,6 +15020,7 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
         "Tiggy Bot",
         "Twelve Angry Men",
         "Foreman",
+        "Juror 1",
         "Juror 2",
         "Juror 3",
         "Juror 4",
@@ -15282,6 +15271,10 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
   document
     .getElementById("message-input")
     .addEventListener("keydown", function (e) {
+    // exit emoji mode on Escape or Enter
+    if (e.key === "Escape" || e.key === "Enter") {
+      exitEmojiMode();
+    }
       if (e.key === "Backspace") {
         const selection = window.getSelection();
         if (!selection.rangeCount) return;
