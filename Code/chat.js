@@ -16,7 +16,7 @@
     TIGGY: "[Tiggy]",
     TIGGYBOT: "[Tiggy Bot]",
     JIMMY: "[Jimmy Bot]",
-    SHELL: "[Shell]"
+    SHELL: "[Shell]",
   };
   const users = {};
   const email = auth.currentUser.email;
@@ -927,6 +927,11 @@
           }
         } else if (message.User === email) {
           messageDiv.classList.add("sent");
+        } else if (message.User === "[SYSTEM]"){
+          messageDiv.classList.add("system");
+          if (!lastReadMessage || message.id > lastReadMessage) {
+            messageDiv.classList.add("unread");
+          }
         } else {
           messageDiv.classList.add("received");
           if (!lastReadMessage || message.id > lastReadMessage) {
@@ -14921,6 +14926,7 @@ Make sure to follow all the instructions while answering questions.
         "Clicker Game",
         "Jimmy Bot",
         "Shell",
+        "System",
         "Everyone",
       ];
 
