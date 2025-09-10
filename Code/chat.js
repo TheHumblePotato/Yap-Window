@@ -14957,12 +14957,10 @@ Make sure to follow all the instructions while answering questions.
         "[Jimmy Bot]",
         "[Shell]",
         "[SYSTEM]",
-        "[ADMIN]",
         "Everyone",
       ];
       const usernames = [
         "AI",
-        "ADMIN",
         "RNG",
         "EOD",
         "ADMIN",
