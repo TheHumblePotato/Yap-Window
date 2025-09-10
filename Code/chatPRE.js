@@ -1,4 +1,4 @@
-(async function () {
+(async function (
   var dayOff = false
   var readMessages = {};
   var readAll = true;
@@ -14584,6 +14584,10 @@ Make sure to follow all the instructions while answering questions.
           Message: message,
           Date: Date.now(),
         });
+        if (message.toLowerCase().includes("@admin")){
+          // TODO: ask yiyang how to send message to specific channel
+          // send message to Staff channel as system
+        }
       }
 
       const snapshot = await get(messagesRef);
@@ -14896,10 +14900,13 @@ Make sure to follow all the instructions while answering questions.
         "[Clicker Game]",
         "[Jimmy Bot]",
         "[Shell]",
+        "[SYSTEM]",
+        "[ADMIN]",
         "Everyone",
       ];
       const usernames = [
         "AI",
+        "ADMIN",
         "RNG",
         "EOD",
         "ADMIN",
@@ -14926,7 +14933,7 @@ Make sure to follow all the instructions while answering questions.
         "Clicker Game",
         "Jimmy Bot",
         "Shell",
-        "System",
+        "SYSTEM",
         "Everyone",
       ];
 
