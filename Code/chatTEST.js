@@ -1,4 +1,4 @@
-(async function () {}
+(async function () {
   var dayOff = false
   var readMessages = {};
   var readAll = true;
