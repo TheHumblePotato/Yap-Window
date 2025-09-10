@@ -1566,22 +1566,22 @@ a:hover {
          </div>
          <div id="message-send">
 	    <input type="file" id="file-upload" style="display: none;" accept="image/*,video/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,.rar,.7z">
-            <div id="formatting-bar">
-               <button id="bold-btn"><b>B</b></button>
-               <button id="italic-btn"><i>I</i></button>
-               <button id="underline-btn"><u>U</u></button>
-               <button id="strike-btn"><s>S</s></button>
-               <div class="color-picker-container" id="text-color-picker">
-                  🖊️
-                  <div class="color-grid" id="text-color-grid"></div>
-               </div>
-               <div class="color-picker-container" id="highlight-color-picker">
-                  🖌️
-                  <div class="color-grid" id="highlight-color-grid"></div>
-               </div>
-               <button id="link-btn">🔗</button>
-	       <button id="attachment-btn">📎</button>
-            </div>
+        <div id="formatting-bar" style="display: flex; gap: 8px; align-items: center;">
+          <button id="bold-btn" style="display: flex; align-items: center; justify-content: center;"><b>B</b></button>
+          <button id="italic-btn" style="display: flex; align-items: center; justify-content: center;"><i>I</i></button>
+          <button id="underline-btn" style="display: flex; align-items: center; justify-content: center;"><u>U</u></button>
+          <button id="strike-btn" style="display: flex; align-items: center; justify-content: center;"><s>S</s></button>
+          <button id="link-btn" style="display: flex; align-items: center; justify-content: center;">🔗</button>
+          <button id="attachment-btn" style="display: flex; align-items: center; justify-content: center;">📎</button>
+          <div class="color-picker-container" id="text-color-picker" style="display: flex; align-items: center; justify-content: center;">
+            <span style="font-size: 20px; margin-right: 2px;">🖊️</span>
+            <div class="color-grid" id="text-color-grid"></div>
+          </div>
+          <div class="color-picker-container" id="highlight-color-picker" style="display: flex; align-items: center; justify-content: center;">
+            <span style="font-size: 20px; margin-right: 2px;">🖌️</span>
+            <div class="color-grid" id="highlight-color-grid"></div>
+          </div>
+        </div>
             <div id="message-send-row">
                <div id="message-input" contenteditable="true" placeholder="Type a message..."></div>
                <button id="send-button">Send</button>
