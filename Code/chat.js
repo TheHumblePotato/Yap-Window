@@ -12517,6 +12517,8 @@
     let message = document
       .getElementById("message-input")
       .innerHTML.substring(0, 5000);
+    // Detect links only after message is sent, not while typing
+    message = autoDetectLinks(message);
 
     let textContent = document
       .getElementById("message-input")
@@ -15688,9 +15690,8 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
     }
   });
 
-  document
-    .getElementById("message-input")
-    .addEventListener("input", function () {});
+  // Remove link detection while typing
+  // document.getElementById("message-input").addEventListener("input", function () {});
 
   function autoDetectLinks(text) {
     const urlRegex =
