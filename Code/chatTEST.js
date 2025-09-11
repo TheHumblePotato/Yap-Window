@@ -748,7 +748,9 @@
         "[Twelve Angry Men]",
         "[Jimmy Bot]",
         "[Jimmy-Bot]", // idk why this is needed but don't delete
-        "[Shell]"
+        "[Shell]",
+        "[SHELL]",
+        "[SYSTEM]"
       ].includes(userEmail)
     )
       return userEmail;
