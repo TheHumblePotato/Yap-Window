@@ -14707,6 +14707,7 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
           // TODO: ask yiyang how to send message to specific channel
           // send message to Staff channel as system
           let oldCurrentChat = currentChat;
+          console.log(oldCurrentChat);
           currentChat = "Staff chat (ADMIN, MOD)";
           systemRef = push(messagesRef);
           await update(systemRef, {
