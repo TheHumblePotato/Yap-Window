@@ -15189,8 +15189,8 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
     tempRange.setStart(messageInput, 0);
     const textBeforeCursor = tempRange.toString();
 
-  // Match the last @mention, even if after an email or other text
-  const mentionMatch = textBeforeCursor.match(/@[^\s@]+/);
+  // Match the last @mention, only the username after the last @, not the domain
+  const mentionMatch = textBeforeCursor.match(/@([^\s@]+)$/);
 
     function insertMentionSpan() {
       const mentionSpan = document.createElement("span");
