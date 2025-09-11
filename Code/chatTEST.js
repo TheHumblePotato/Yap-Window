@@ -12653,10 +12653,13 @@
           aiReply = message; // Keep original message if AI processing fails
         }
 
+        // Ensure any links in the AI reply are converted before saving to DB
+        aiReply = autoDetectLinks(aiReply);
+
         const newMessageRef = push(messagesRef);
         await update(newMessageRef, {
           User: email,
-          Message: aiReply,
+          Message: autoDetectLinks(aiReply),
           Date: Date.now(),
         });
 
@@ -12801,9 +12804,7 @@
             const botMessageRef = push(messagesRef);
             await update(botMessageRef, {
               User: "[Jimmy-Bot]",
-              Message: `I noticed a grammar mistake in your message, Jimmy! 
-                            <br><br>You wrote: "${originalMessage}"
-                            <br><br>Correction: "${correctedMessage}"`,
+              Message: autoDetectLinks(`I noticed a grammar mistake in your message, Jimmy! \n                                <br><br>You wrote: "${originalMessage}"\n                                <br><br>Correction: "${correctedMessage}"`),
               Date: Date.now() + 1,
             });
 
@@ -12876,7 +12877,7 @@
             const newMessageRef = push(messagesRef);
             await update(newMessageRef, {
               User: email,
-              Message: message,
+              Message: autoDetectLinks(message),
               Date: Date.now(),
             });
 
@@ -12930,7 +12931,7 @@
             const newMessageRef = push(messagesRef);
             await update(newMessageRef, {
               User: email,
-              Message: correctedMessage,
+              Message: autoDetectLinks(correctedMessage),
               Date: Date.now(),
             });
 
@@ -12949,7 +12950,7 @@
             const newMessageRef = push(messagesRef);
             await update(newMessageRef, {
               User: email,
-              Message: originalMessage,
+              Message: autoDetectLinks(originalMessage),
               Date: Date.now(),
             });
 
@@ -12970,7 +12971,7 @@
               const newMessageRef = push(messagesRef);
               await update(newMessageRef, {
                 User: email,
-                Message: originalMessage,
+                Message: autoDetectLinks(originalMessage),
                 Date: Date.now(),
               });
 
@@ -12995,7 +12996,7 @@
         const userMessageRef = push(messagesRef);
         await update(userMessageRef, {
           User: email,
-          Message: message,
+          Message: autoDetectLinks(message),
           Date: d,
         });
 
@@ -13074,7 +13075,7 @@ Make sure to follow all the instructions while answering questions.
         const aiMessageRef = push(messagesRef);
         await update(aiMessageRef, {
           User: "[AI]",
-          Message: aiReply,
+          Message: autoDetectLinks(aiReply),
           Date: d,
         });
       } else if (pureMessage.trim().toLowerCase().startsWith("/eod")) {
@@ -13107,7 +13108,7 @@ Make sure to follow all the instructions while answering questions.
         const userMessageRef = push(messagesRef);
         await update(userMessageRef, {
           User: email,
-          Message: message,
+          Message: autoDetectLinks(message),
           Date: Date.now(),
         });
 
@@ -13152,7 +13153,7 @@ Make sure to follow all the instructions while answering questions.
         const userMessageRef = push(messagesRef);
         await update(userMessageRef, {
           User: email,
-          Message: message,
+          Message: autoDetectLinks(message),
           Date: Date.now(),
         });
 
@@ -13171,7 +13172,7 @@ Make sure to follow all the instructions while answering questions.
         const userHelpMessageRef = push(messagesRef);
         await update(userHelpMessageRef, {
           User: email,
-          Message: message,
+          Message: autoDetectLinks(message),
           Date: Date.now(),
         });
         // Send help message from [HELP] bot
@@ -13205,7 +13206,7 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
           const userMessageRef = push(messagesRef);
           await update(userMessageRef, {
             User: email,
-            Message: message,
+            Message: autoDetectLinks(message),
             Date: Date.now(),
           });
 
@@ -13347,7 +13348,7 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
         const newMessageRef = push(messagesRef);
         await update(newMessageRef, {
           User: email,
-          Message: message,
+          Message: autoDetectLinks(message),
           Date: Date.now(),
         });
 
@@ -13383,7 +13384,7 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
         const userMessageRef = push(messagesRef);
         await update(userMessageRef, {
           User: email,
-          Message: message,
+          Message: autoDetectLinks(message),
           Date: Date.now(),
         });
         const sides = parseInt(message.split(" ")[1]);
@@ -13475,7 +13476,7 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
         const userMessageRef = push(messagesRef);
         await update(userMessageRef, {
           User: email,
-          Message: message,
+          Message: autoDetectLinks(message),
           Date: Date.now(),
         });
         const tiggydialoguehappy = [
@@ -14595,7 +14596,7 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
           const tiggymessage = push(messagesRef);
           await update(tiggymessage, {
             User: BOT_USERS.TIGGY,
-            Message: finaltiggymessage,
+            Message: autoDetectLinks(finaltiggymessage),
             Date: Date.now(),
           });
         }
@@ -14630,7 +14631,7 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
           const userMessageRef = push(messagesRef);
           await update(userMessageRef, {
             User: email,
-            Message: message,
+            Message: autoDetectLinks(message),
             Date: Date.now(),
           });
 
@@ -14697,7 +14698,7 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
         const newMessageRef = push(messagesRef);
         await update(newMessageRef, {
           User: email,
-          Message: message,
+          Message: autoDetectLinks(message),
           Date: Date.now(),
         });
         if (message.toLowerCase().includes("@admin")) {
@@ -15188,7 +15189,8 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
     tempRange.setStart(messageInput, 0);
     const textBeforeCursor = tempRange.toString();
 
-    const mentionMatch = textBeforeCursor.match(/@[\w\.\-]*$/);
+  // Match the last @mention, even if after an email or other text
+  const mentionMatch = textBeforeCursor.match(/@[^\s@]+/);
 
     function insertMentionSpan() {
       const mentionSpan = document.createElement("span");
@@ -15212,11 +15214,18 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
     }
 
     if (mentionMatch) {
-      const matchLength = mentionMatch[0].length;
-
-      range.setStart(range.endContainer, range.endOffset - matchLength);
-      range.deleteContents();
-
+      // Find the position of the last @ in the text before the cursor
+      const lastAtIndex = textBeforeCursor.lastIndexOf("@");
+      if (lastAtIndex !== -1) {
+        // Move the range to start at the @ and delete up to the cursor
+        const tempRange = range.cloneRange();
+        tempRange.setStart(messageInput.firstChild || messageInput, lastAtIndex);
+        tempRange.setEnd(range.endContainer, range.endOffset);
+        tempRange.deleteContents();
+        // Set the main range to the new position
+        range.setStart(messageInput.firstChild || messageInput, lastAtIndex);
+        range.collapse(true);
+      }
       return insertMentionSpan();
     } else if (lastInsertedMention && lastInsertedMention.parentNode) {
       const parent = lastInsertedMention.parentNode;
