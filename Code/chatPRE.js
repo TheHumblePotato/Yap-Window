@@ -14711,7 +14711,7 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
           systemRef = push(messagesRef);
           await update(systemRef, {
             User: "[SYSTEM]",
-            Message: `Someone has mentioned @admin in {oldCurrentChat}!`,
+            Message: `Someone has mentioned @admin in ${oldCurrentChat}!`,
             Date: Date.now()
           });
           console.log("admin mentioned");
