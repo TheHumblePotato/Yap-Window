@@ -13181,7 +13181,7 @@ Make sure to follow all the instructions while answering questions.
           Message: `Yap Window Commands:<br>
 <b>/help</b> — Show this help message<br>
 <b>/ai [prompt]</b> — Ask the AI a question<br>
-<b>/eod</b> — Magicly tell you the anser to any question with yes,no, or maybe.<br>
+<b>/eod</b> — Magically tell you the anser to any question with yes, no, or maybe.<br>
 <b>/coinflip</b> — Flip a coin<br>
 <b>/snake</b> — Play Snake game<br>
 Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacific Time)<br>
