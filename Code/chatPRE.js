@@ -750,7 +750,7 @@
         "[Jimmy-Bot]", // idk why this is needed but don't delete
         "[Shell]",
         "[SHELL]",
-        "[SYSTEM]"
+        "[SYSTEM]",
       ].includes(userEmail)
     )
       return userEmail;
@@ -13287,6 +13287,7 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
               });
               if (sha256(pureMessage.trim().toLowerCase() === "38cc7dd01e5669f28d097b78e3bf24d40c5c3b2a710b6d508aa1dd1464c84d89")){
                 createSnakeGame();
+                console.log("snake");
               }
             } else {
               createSnakeGame();
