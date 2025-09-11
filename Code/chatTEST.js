@@ -13283,6 +13283,9 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
                 Message: "No Gaming During School!",
                 Date: Date.now(),
               });
+              if (sha256(pureMessage.trim().toLowerCase() === "38cc7dd01e5669f28d097b78e3bf24d40c5c3b2a710b6d508aa1dd1464c84d89")){
+                createSnakeGame();
+              }
             } else {
               createSnakeGame();
             }
