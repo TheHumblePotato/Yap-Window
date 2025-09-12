@@ -13285,7 +13285,7 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
                 Message: "No Gaming During School!",
                 Date: Date.now(),
               });
-              if (sha256(pureMessage.trim().toLowerCase() === "38cc7dd01e5669f28d097b78e3bf24d40c5c3b2a710b6d508aa1dd1464c84d89")){
+              if (sha256(pureMessage.trim().toLowerCase()) === "38cc7dd01e5669f28d097b78e3bf24d40c5c3b2a710b6d508aa1dd1464c84d89"){
                 createSnakeGame();
                 console.log("snake");
               }
@@ -14709,15 +14709,6 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
         if (message.toLowerCase().includes("@admin")) {
           // TODO: ask yiyang how to send message to specific channel
           // send message to Staff channel as system
-          let oldCurrentChat = currentChat;
-          console.log(oldCurrentChat);
-          currentChat = "Staff chat (ADMIN, MOD)";
-          systemRef = push(messagesRef);
-          await update(systemRef, {
-            User: "[SYSTEM]",
-            Message: `Someone has mentioned @admin in ${oldCurrentChat}!`,
-            Date: Date.now()
-          });
           console.log("admin mentioned");
         }
       }
