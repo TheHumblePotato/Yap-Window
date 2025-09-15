@@ -15693,15 +15693,41 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
   // document.getElementById("message-input").addEventListener("input", function () {});
 
   function autoDetectLinks(text) {
-    const urlRegex =
-      /(https?:\/\/[^\s]+)|((www\.)?([a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}\b(\/[^\s]*)?)/gi;
-    return text.replace(urlRegex, function (url) {
-      let href = url;
-      if (url.startsWith("www.")) {
-        href = "https://" + url;
+    // Create a temporary DOM element
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = text;
+
+    const urlRegex = /(https?:\/\/[^\s]+)|((www\.)?([a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}\b(\/[^\s]*)?)/gi;
+
+    function processNode(node) {
+      // Only process text nodes
+      if (node.nodeType === Node.TEXT_NODE) {
+        const replaced = node.textContent.replace(urlRegex, function (url) {
+          let href = url;
+          if (url.startsWith("www.")) {
+            href = "https://" + url;
+          }
+          return `<a href="${href}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+        });
+
+        // If replacement happened, replace the text node with new HTML
+        if (replaced !== node.textContent) {
+          const span = document.createElement('span');
+          span.innerHTML = replaced;
+          node.replaceWith(...span.childNodes);
+        }
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        // Skip <span class="mention"> elements entirely
+        if (node.classList.contains('mention')) return;
+
+        // Recurse through child nodes
+        [...node.childNodes].forEach(processNode);
       }
-      return `<a href="${href}" target="_blank" rel="noopener noreferrer">${url}</a>`;
-    });
+    }
+
+    [...tempDiv.childNodes].forEach(processNode);
+
+    return tempDiv.innerHTML;
   }
 
   const attachmentPreview = document.getElementById("attachment-preview");
