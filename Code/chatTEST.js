@@ -603,23 +603,18 @@
     const closeUserSidebarBtn = document.getElementById("close-user-sidebar");
 
     userActivityBtn.addEventListener("click", () => {
-      rightUserSidebar.classList.toggle("visible");
-      rightUserSidebar.classList.toggle("hidden");
-
-      if (rightUserSidebar.classList.contains("visible")) {
+      if (rightUserSidebar.style.display === "none" || rightUserSidebar.style.display === "") {
+        rightUserSidebar.style.display = "flex";
         updateUserActivityList();
-
-        window.userActivityInterval = setInterval(
-          updateUserActivityList,
-          60000,
-        );
+        window.userActivityInterval = setInterval(updateUserActivityList, 60000);
       } else {
+        rightUserSidebar.style.display = "none";
         clearInterval(window.userActivityInterval);
       }
     });
 
     closeUserSidebarBtn.addEventListener("click", () => {
-      rightUserSidebar.classList.remove("visible");
+      rightUserSidebar.style.display = "none";
       clearInterval(window.userActivityInterval);
     });
   }

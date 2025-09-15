@@ -904,23 +904,18 @@
         font-weight: bold;
       }
       #right-user-sidebar {
-        position: absolute;
-        top: 40px;
-        right: 0;
         width: 250px;
-        height: calc(100% - 40px);
+        height: 100%;
         background-color: ${isDark ? "#222" : "#f7f7f7"};
         border-left: 1px solid ${isDark ? "#444" : "#e0e0e0"};
-        z-index: 100;
-        display: flex;
+        display: none; /* start hidden, toggle to show */
         flex-direction: column;
-        transition: transform 0.3s ease-in-out;
-        transform: translateX(100%);
         overflow: hidden;
+        flex-shrink: 0;
       }
 
       #right-user-sidebar.visible {
-        transform: translateX(0);
+        display: flex;
       }
 
       #user-sidebar-header {
@@ -1589,7 +1584,7 @@
 	    <div id="attachment-preview"></div>
          </div>
       </div>
-      <div id="right-user-sidebar" class="hidden">
+  <div id="right-user-sidebar">
 	  <div id="user-sidebar-header">
 	    <h3>Users</h3>
 	    <span id="close-user-sidebar">×</span>
