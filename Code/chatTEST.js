@@ -1805,7 +1805,7 @@
   // fetch 24 data
   const url = "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/main/Code/24answers.json";
   // Fetch the raw JSON data from GitHub
-  fetch(url)
+  await fetch(url)
     .then(response => {
       if (!response.ok) {
         throw new Error("Failed to fetch JSON file from GitHub");
