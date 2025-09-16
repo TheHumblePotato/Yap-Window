@@ -603,18 +603,23 @@
     const closeUserSidebarBtn = document.getElementById("close-user-sidebar");
 
     userActivityBtn.addEventListener("click", () => {
-      if (rightUserSidebar.style.display === "none" || rightUserSidebar.style.display === "") {
-        rightUserSidebar.style.display = "flex";
+      rightUserSidebar.classList.toggle("visible");
+      rightUserSidebar.classList.toggle("hidden");
+
+      if (rightUserSidebar.classList.contains("visible")) {
         updateUserActivityList();
-        window.userActivityInterval = setInterval(updateUserActivityList, 60000);
+
+        window.userActivityInterval = setInterval(
+          updateUserActivityList,
+          60000,
+        );
       } else {
-        rightUserSidebar.style.display = "none";
         clearInterval(window.userActivityInterval);
       }
     });
 
     closeUserSidebarBtn.addEventListener("click", () => {
-      rightUserSidebar.style.display = "none";
+      rightUserSidebar.classList.remove("visible");
       clearInterval(window.userActivityInterval);
     });
   }
@@ -2214,9 +2219,9 @@
       }
 
       const pwdSnap = await get(this._pwRef(path));
-      if (pwdSnap.exists()) {
+      if (pwdSnap.exists() && !isSudo) {
         const attempt = await this._promptText(`Password for '${dir}':`, true);
-        if (attempt !== pwdSnap.val()) {
+        if (attempt !== pwdSnap.val())  {
           return `cd: incorrect password`;
         }
       }

@@ -2219,9 +2219,9 @@
       }
 
       const pwdSnap = await get(this._pwRef(path));
-      if (pwdSnap.exists()) {
+      if (pwdSnap.exists() && !isSudo) {
         const attempt = await this._promptText(`Password for '${dir}':`, true);
-        if (attempt !== pwdSnap.val()) {
+        if (attempt !== pwdSnap.val())  {
           return `cd: incorrect password`;
         }
       }
