@@ -835,6 +835,7 @@
         isLoadingMore = false;
       }
     });
+
     function formatDate(dateString) {
       const messageDate = new Date(dateString);
       const now = new Date();
@@ -863,12 +864,31 @@
           hour: "2-digit",
           minute: "2-digit",
         })}`;
-      } else {
+      } else if (diffDays <= 10){
         return `${diffDays} days ago ${messageDate.toLocaleTimeString([], {
           hour: "2-digit",
           minute: "2-digit",
         })}`;
+      } else {
+        return `${getDate(dateString)} ${messageDate.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}`;
       }
+    }
+
+    function getDate(myDate){
+      const month = myDate.getMonth() + 1; // Get month and add 1 (September is 8, so 8 + 1 = 9)
+      const day = myDate.getDate();     // Get day (16)
+      const year = myDate.getFullYear(); // Get full year (2025)
+
+      // Pad month and day with leading zeros if they are single digits
+      const formattedMonth = month < 10 ? '0' + month : month;
+      const formattedDay = day < 10 ? '0' + day : day;
+
+      const formattedDate = `${formattedMonth}/${formattedDay}/${year}`;
+
+      return formattedDate;
     }
 
     async function appendSingleMessage(message, prepend = false) {
@@ -4927,21 +4947,6 @@ Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacifi
     sendButton.disabled = false;
   // exit emoji mode after sending
   exitEmojiMode();
-  }
-
-  function formatDate(timestamp) {
-    const messageDate = new Date(timestamp);
-    const today = new Date();
-    const diffTime = today - messageDate;
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 0) {
-      return "Today";
-    } else if (diffDays === 1) {
-      return "One day ago";
-    } else {
-      return `${diffDays} days ago`;
-    }
   }
 
   document.getElementById("messages").addEventListener("click", async (e) => {
