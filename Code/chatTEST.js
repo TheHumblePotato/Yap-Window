@@ -1805,6 +1805,7 @@
   // fetch 24 data
   const url = "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/main/Code/24answers.json";
   // Fetch the raw JSON data from GitHub
+  let twentyFour = null;
   await fetch(url)
     .then(response => {
       if (!response.ok) {
@@ -1812,9 +1813,10 @@
       }
       return response.json(); // Parse the response as JSON
     })
-    .then(twentyFour => {
+    .then(data => {
       // The fetched JSON data is now stored in the `twentyFour` variable
-      console.log("Fetched data:", twentyFour);
+      console.log("Fetched data:", data);
+      twentyFour = data;
 
       // You can now work with `twentyFour` (the data from 24answers.json)
     })
