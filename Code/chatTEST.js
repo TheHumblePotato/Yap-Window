@@ -600,6 +600,7 @@
   function initializeUserActivitySidebar() {
     const userActivityBtn = document.getElementById("user-activity");
     const rightUserSidebar = document.getElementById("right-user-sidebar");
+    rightUserSidebar.classList.add("hidden");
     const closeUserSidebarBtn = document.getElementById("close-user-sidebar");
 
     userActivityBtn.addEventListener("click", () => {
