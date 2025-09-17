@@ -9,7 +9,6 @@
     AI: "[AI]",
     RNG: "[RNG]",
     EOD: "[EOD]",
-    ADMIN: "[ADMIN]",
     SNAKE: "[Snake Game]",
     24: "[24]",
     ARCHFIEND: "[Archfiend Dice]",
@@ -740,7 +739,6 @@
         "[AI]",
         "[RNG]",
         "[EOD]",
-        "[ADMIN]",
         "[HELP]",
         "[Snake Game]",
         "[24]",
@@ -949,8 +947,7 @@
         mentions.forEach((mention) => {
           if (
             mention.dataset.email === email ||
-            mention.dataset.email === "Everyone" ||
-            (mention.dataset.email === "ADMIN" && ADMIN_LIST.includes(email))
+            mention.dataset.email === "Everyone"
           ) {
             mention.classList.add("highlight");
           }
@@ -1013,8 +1010,7 @@
         mentions.forEach((mention) => {
           if (
             mention.dataset.email === email ||
-            mention.dataset.email === "Everyone" ||
-            (mention.dataset.email === "ADMIN" && ADMIN_LIST.includes(email))
+            mention.dataset.email === "Everyone"
           ) {
             mention.classList.add("highlight");
           }
@@ -4931,11 +4927,6 @@
           Message: message,
           Date: Date.now(),
         });
-        if (message.toLowerCase().includes("@admin")) {
-          // TODO: ask yiyang how to send message to specific channel
-          // send message to Staff channel as system
-          console.log("admin mentioned");
-        }
       }
 
       const snapshot = await get(messagesRef);
@@ -5193,7 +5184,6 @@
         "[AI]",
         "[RNG]",
         "[EOD]",
-        "[ADMIN]",
         "[HELP]",
         "[Snake Game]",
         "[24]",
@@ -5226,7 +5216,6 @@
         "AI",
         "RNG",
         "EOD",
-        "ADMIN",
         "HELP",
         "Snake Game",
         "24",
