@@ -603,8 +603,8 @@
     const closeUserSidebarBtn = document.getElementById("close-user-sidebar");
 
     userActivityBtn.addEventListener("click", () => {
-      rightUserSidebar.classList.replace("hidden", "visible");
-      rightUserSidebar.classList.replace("visible", "hidden");
+      rightUserSidebar.classList.toggle("visible");
+      rightUserSidebar.classList.toggle("hidden");
 
       if (rightUserSidebar.classList.contains("visible")) {
         updateUserActivityList();
