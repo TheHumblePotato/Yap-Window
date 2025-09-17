@@ -4086,11 +4086,11 @@
           // Add keyframes for flickering effect
           const style = document.createElement("style");
           style.textContent = `
-    @keyframes flicker {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.5; }
-    }
-`;
+              @keyframes flicker {
+                  0%, 100% { opacity: 1; }
+                  50% { opacity: 0.5; }
+              }
+          `;
           document.head.appendChild(style);
 
           // Start animation
