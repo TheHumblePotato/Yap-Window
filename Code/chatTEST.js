@@ -4838,7 +4838,7 @@
           console.log("No active channel found.");
         }
 
-        if (serverName !== "Shell" && serverName !== "Bot Commands" && serverName !== "Zane - Winston") {
+        if (serverName !== "Shell" && serverName !== "Bot Commands" && serverName !== "Zane-Winston") {
           const errorMessageRef = push(messagesRef);
           await update(errorMessageRef, {
             User: BOT_USERS.SHELL,
