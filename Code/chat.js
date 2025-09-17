@@ -3262,7 +3262,7 @@
         User: ${email} asks: ${noFilesMessage}
 
         Make sure to follow all the instructions while answering questions.
-`;
+        `;
 
         let aiReply = null;
         let successfulRequest = false;
