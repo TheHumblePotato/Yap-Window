@@ -3406,20 +3406,20 @@
         await update(helpMessageRef, {
           User: BOT_USERS.HELP,
           Message: `Yap Window Commands:<br>
-<b>/help</b> — Show this help message<br>
-<b>/ai [prompt]</b> — Ask the AI a question<br>
-<b>/eod</b> — Magically tell you the anser to any question with yes, no, or maybe.<br>
-<b>/coinflip</b> — Flip a coin<br>
-<b>/snake</b> — Play Snake game<br>
-Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacific Time)<br>
-<b>/snake leaderboard</b> — Show Snake leaderboard<br>
-<b>/24</b> — Start a 24 game<br>
-<b>/24 skip</b> — Skip current 24 game<br>
-<b>/24 [answer]</b> — Submit answer for 24 game<br>
-<b>/roll [sides]</b> — Roll a die with [sides] sides<br>
-<b>/tiggy</b> — Interact with Tiggy bot<br>
-<b>/tiggy help</b> — Show Tiggy commands<br>
-<b>/shell [command]</b> — Run a shell command<br>`,
+                    <b>/help</b> — Show this help message<br>
+                    <b>/ai [prompt]</b> — Ask the AI a question<br>
+                    <b>/eod</b> — Magically tell you the anser to any question with yes, no, or maybe.<br>
+                    <b>/coinflip</b> — Flip a coin<br>
+                    <b>/snake</b> — Play Snake game<br>
+                    Snake only works outside of school hours (Monday-Friday 8:15 AM - 3:20 PM Pacific Time)<br>
+                    <b>/snake leaderboard</b> — Show Snake leaderboard<br>
+                    <b>/24</b> — Start a 24 game<br>
+                    <b>/24 skip</b> — Skip current 24 game<br>
+                    <b>/24 [answer]</b> — Submit answer for 24 game<br>
+                    <b>/roll [sides]</b> — Roll a die with [sides] sides<br>
+                    <b>/tiggy</b> — Interact with Tiggy bot<br>
+                    <b>/tiggy help</b> — Show Tiggy commands<br>
+                    <b>/shell [command]</b> — Run a shell command<br>`,
           Date: Date.now(),
         });
         
