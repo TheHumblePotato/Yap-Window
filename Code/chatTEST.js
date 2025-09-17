@@ -603,24 +603,25 @@
     const closeUserSidebarBtn = document.getElementById("close-user-sidebar");
 
     userActivityBtn.addEventListener("click", () => {
-      rightUserSidebar.classList.toggle("visible");
-      rightUserSidebar.classList.toggle("hidden");
+        // Replace both classes to ensure only one exists
+        if (rightUserSidebar.classList.contains("visible")) {
+            rightUserSidebar.classList.replace("visible", "hidden");
+        } else {
+            rightUserSidebar.classList.replace("hidden", "visible");
+        }
 
-      if (rightUserSidebar.classList.contains("visible")) {
-        updateUserActivityList();
-
-        window.userActivityInterval = setInterval(
-          updateUserActivityList,
-          60000,
-        );
-      } else {
-        clearInterval(window.userActivityInterval);
-      }
+        // Update interval based on NEW state
+        if (rightUserSidebar.classList.contains("visible")) {
+            updateUserActivityList();
+            window.userActivityInterval = setInterval(updateUserActivityList, 10000);
+        } else {
+            clearInterval(window.userActivityInterval);
+        }
     });
 
     closeUserSidebarBtn.addEventListener("click", () => {
-      rightUserSidebar.classList.remove("visible");
-      clearInterval(window.userActivityInterval);
+        rightUserSidebar.classList.replace("visible", "hidden");
+        clearInterval(window.userActivityInterval);
     });
   }
 
