@@ -1584,7 +1584,7 @@
           <div id="attachment-preview"></div>
             </div>
           </div>
-      <div id="right-user-sidebar">
+      <div id="right-user-sidebar" class="hidden">
         <div id="user-sidebar-header">
           <h3>Users</h3>
           <span id="close-user-sidebar">×</span>
