@@ -1,13 +1,15 @@
 javascript: (async function () {
   const firebaseConfig = {
-    apiKey: "AIzaSyDxEnp1678f73t0QPCr8dfP00vI_emKqa8",
-    authDomain: "testing-7d972.firebaseapp.com",
-    databaseURL: "https://testing-7d972-default-rtdb.firebaseio.com",
-    projectId: "testing-7d972",
-    storageBucket: "testing-7d972.appspot.com",
-    messagingSenderId: "327875935397",
-    appId: "1:327875935397:web:13e6a090b0229da791e14c",
+    apiKey: "AIzaSyBze6NI0eB8S2RK5pr9E97dirYp5propCw",
+    authDomain: "yap--window.firebaseapp.com",
+    databaseURL: "https://yap--window-default-rtdb.firebaseio.com",
+    projectId: "yap--window",
+    storageBucket: "yap--window.firebasestorage.app",
+    messagingSenderId: "331436638756",
+    appId: "1:331436638756:web:15affa3bf7a433d7a04eb1",
+    measurementId: "G-R6NQW8X18R"
   };
+
 
   document.write(`
     <div style="font-family: sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; background-color: #f9f9f9; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
