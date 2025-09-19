@@ -9,8 +9,12 @@
     const GITHUB_REPO = "Yap-Window";
 
     // Helper to build raw.githubusercontent URL for files in the main branch and
-    // always call with true bc don't ask why
-    // if you actually want to know why read loginTEST.js
+    // attach a timestamp token to avoid aggressive caching.
+    // buildRawUrl(path, useEncodedToken=false)
+    // - when useEncodedToken is false (default) it appends a numeric unix timestamp
+    //   to help avoid caching.
+    // - when true it appends the literal, URL-encoded shell token string
+    //   $(date%20+%s) so the assembled URL matches the encoded fallback format.
     function buildRawUrl(path, useEncodedToken = false) {
       if (useEncodedToken) {
         return `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/refs/heads/main/${path}?token=$(date%20+%s)`;
@@ -19,15 +23,15 @@
       return `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/refs/heads/main/${path}?token=${ts}`;
     }
     const firebaseConfig = {
-      apiKey: "AIzaSyA48Uv_v5c7-OCnkQ8nBkjIW8MN4STDcJs",
-      authDomain: "noise-75cba.firebaseapp.com",
-      databaseURL: "https://noise-75cba-default-rtdb.firebaseio.com",
-      projectId: "noise-75cba",
-      storageBucket: "noise-75cba.appspot.com",
-      messagingSenderId: "1092146908435",
-      appId: "1:1092146908435:web:f72b90362cc86c5f83dee6",
+      apiKey: "AIzaSyBze6NI0eB8S2RK5pr9E97dirYp5propCw",
+      authDomain: "yap--window.firebaseapp.com",
+      databaseURL: "https://yap--window-default-rtdb.firebaseio.com",
+      projectId: "yap--window",
+      storageBucket: "yap--window.firebasestorage.app",
+      messagingSenderId: "331436638756",
+      appId: "1:331436638756:web:15affa3bf7a433d7a04eb1",
+      measurementId: "G-R6NQW8X18R"
     };
-
     var database, auth, provider, email, mostRecentVersionKey;
     try {
       var { initializeApp } = await import(
@@ -64,9 +68,9 @@
       return;
     }
 
-  const guiPrimaryUrl = buildRawUrl("Code/gui.js", true);
+  const guiPrimaryUrl = buildRawUrl("Code/guiTEST.js", true);
       const guiFallbackUrl =
-        "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/main/Code/gui.js?token=$(date%20+%s)";
+        "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/main/Code/guiTEST.js?token=$(date%20+%s)";
 
     fetch(guiPrimaryUrl)
       .then((r) => {
@@ -92,9 +96,9 @@
             remove,
             child,
           };
-          const chatPrimaryUrl = buildRawUrl("Code/chat.js", true);
+          const chatPrimaryUrl = buildRawUrl("Code/chatTEST.js", true);
             const chatFallbackUrl =
-              "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/main/Code/chat.js?token=$(date%20+%s)";
+              "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/main/Code/chatTEST.js?token=$(date%20+%s)";
 
           fetch(chatPrimaryUrl)
             .then((r) => {
