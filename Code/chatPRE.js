@@ -1802,7 +1802,7 @@
   // Also load the setting immediately in case the script runs after DOMContentLoaded
   loadSavedSetting();
   // fetch 24 data
-  const url = "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/main/Code/24answers.json";
+  const url = "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/24answers.json";
   // Fetch the raw JSON data from GitHub
   let twentyFour = null;
   await fetch(url)

@@ -8,15 +8,15 @@
     const GITHUB_USER = "TheHumblePotato";
     const GITHUB_REPO = "Yap-Window";
 
-    // Helper to build raw.githubusercontent URL for files in the main branch and
+    // Helper to build raw.githubusercontent URL for files in the beta branch and
     // always call with true bc don't ask why
     // if you actually want to know why read loginTEST.js
     function buildRawUrl(path, useEncodedToken = false) {
       if (useEncodedToken) {
-        return `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/refs/heads/main/${path}?token=$(date%20+%s)`;
+        return `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/refs/heads/beta/${path}?token=$(date%20+%s)`;
       }
       const ts = Math.floor(Date.now() / 1000);
-      return `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/refs/heads/main/${path}?token=${ts}`;
+      return `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/refs/heads/beta/${path}?token=${ts}`;
     }
     const firebaseConfig = {
       apiKey: "AIzaSyA48Uv_v5c7-OCnkQ8nBkjIW8MN4STDcJs",
@@ -66,7 +66,7 @@
 
   const guiPrimaryUrl = buildRawUrl("Code/guiPRE.js", true);
       const guiFallbackUrl =
-        "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/main/Code/guiPRE.js?token=$(date%20+%s)";
+        "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/guiPRE.js?token=$(date%20+%s)";
 
     fetch(guiPrimaryUrl)
       .then((r) => {
@@ -94,7 +94,7 @@
           };
           const chatPrimaryUrl = buildRawUrl("Code/chatPRE.js", true);
             const chatFallbackUrl =
-              "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/main/Code/chatPRE.js?token=$(date%20+%s)";
+              "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/chatPRE.js?token=$(date%20+%s)";
 
           fetch(chatPrimaryUrl)
             .then((r) => {
