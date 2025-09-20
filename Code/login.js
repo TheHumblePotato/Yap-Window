@@ -23,15 +23,15 @@
       return `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/refs/heads/main/${path}?token=${ts}`;
     }
     const firebaseConfig = {
-      apiKey: "AIzaSyBze6NI0eB8S2RK5pr9E97dirYp5propCw",
-      authDomain: "yap--window.firebaseapp.com",
-      databaseURL: "https://yap--window-default-rtdb.firebaseio.com",
-      projectId: "yap--window",
-      storageBucket: "yap--window.firebasestorage.app",
-      messagingSenderId: "331436638756",
-      appId: "1:331436638756:web:15affa3bf7a433d7a04eb1",
-      measurementId: "G-R6NQW8X18R"
-    };
+      apiKey: "AIzaSyA48Uv_v5c7-OCnkQ8nBkjIW8MN4STDcJs",
+      authDomain: "noise-75cba.firebaseapp.com",
+      databaseURL: "https://noise-75cba-default-rtdb.firebaseio.com",
+      projectId: "noise-75cba",
+      storageBucket: "noise-75cba.appspot.com",
+      messagingSenderId: "1092146908435",
+      appId: "1:1092146908435:web:f72b90362cc86c5f83dee6", 
+      measurementId: "G-5DH6JFX6W5"
+    };    
     var database, auth, provider, email, mostRecentVersionKey;
     try {
       var { initializeApp } = await import(
