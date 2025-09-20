@@ -15,6 +15,20 @@ Code/
 └── loginPRE.js       # Authentication and user management
 ```
 
+### GitHub Repository Configuration
+The voice chat system loads from the **beta branch** of the Yap Window repository:
+
+**URL Format:**
+```
+https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/vcPRE.js?token=$(date%20+%s)
+```
+
+**Key Details:**
+- **Repository**: TheHumblePotato/Yap-Window
+- **Branch**: `beta` (development branch)
+- **Cache Busting**: `?token=$(date%20+%s)` ensures fresh content
+- **Path**: `/Code/vcPRE.js` in repository structure
+
 ### Cross-File Function Calling Mechanism
 
 The Yap Window application uses a **fetch-and-eval** architecture that enables seamless function calls across different JavaScript files:
@@ -22,8 +36,14 @@ The Yap Window application uses a **fetch-and-eval** architecture that enables s
 #### 1. Dynamic Script Loading Pattern
 ```javascript
 // Example from loginPRE.js loading vcPRE.js
-const vcPrimaryUrl = buildRawUrl("Code/vcPRE.js", true);
+const vcPrimaryUrl = "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/vcPRE.js?token=$(date%20+%s)";
+const vcFallbackUrl = "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/vcPRE.js?token=$(date%20+%s)";
+
 fetch(vcPrimaryUrl)
+    .then(r => {
+        if (!r.ok) return fetch(vcFallbackUrl);
+        return r;
+    })
     .then(r => r.text())
     .then(code => {
         eval(code); // vcPRE.js functions now available globally
@@ -76,7 +96,8 @@ eval(vcCode); // vcPRE.js can now use email, currentChat, database directly
 // Typical loading sequence in loginPRE.js or chatPRE.js
 async function loadVoiceChat() {
     // 1. Load and execute vcPRE.js
-    const vcCode = await fetch(buildRawUrl("Code/vcPRE.js")).then(r => r.text());
+    const vcUrl = "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/vcPRE.js?token=$(date%20+%s)";
+    const vcCode = await fetch(vcUrl).then(r => r.text());
     eval(vcCode); // Functions now available globally
     
     // 2. Add button after functions are loaded

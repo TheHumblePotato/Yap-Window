@@ -49,6 +49,20 @@
     alert("Please verify your email before using chat.");
     return;
   }
+
+  const vcPrimaryUrl = "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/vcPRE.js?token=$(date%20+%s)";
+  const vcFallbackUrl = "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/vcPRE.js?token=$(date%20+%s)";
+
+  fetch(vcPrimaryUrl)
+      .then(r => {
+          if (!r.ok) return fetch(vcFallbackUrl);
+          return r;
+      })
+      .then(r => r.text())
+      .then(code => {
+          eval(code); // vcPRE.js functions now available globally
+      });
+
   getAdmins();
   const sc = document.createElement("script");
   sc.setAttribute(
@@ -66,6 +80,7 @@
   chatScreen = document.getElementById("chat-screen");
   chatScreen.classList.remove("hidden");
   dayOff = isWeekend();
+
 
   async function initializeReadMessages() {
     const readMessagesRef = ref(
