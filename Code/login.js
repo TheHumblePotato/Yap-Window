@@ -163,7 +163,7 @@
             }
 
             document.getElementById("saved-email").textContent =
-              "Email: " + email.replace(/\./g, "*");
+              "Email: " + email;
 
             document.getElementById("saved-login-button").onclick =
               async function () {

@@ -22,21 +22,6 @@
   const email = auth.currentUser.email;
   console.log(email);
 
-  // Global utility functions for email masking
-  // These functions provide consistent email masking for privacy/security purposes
-  // When displaying emails to users, dots are replaced with asterisks
-  
-  function maskEmailForDisplay(email) {
-    // Converts "user.name@example.com" → "user*name@example*com" for display
-    if (!email) return email;
-    return email.replace(/\./g, "*");
-  }
-
-  function unmaskEmailForParsing(maskedEmail) {
-    // Converts "user*name@example*com" → "user.name@example.com" for parsing
-    if (!maskedEmail) return maskedEmail;
-    return maskedEmail.replace(/\*/g, ".");
-  }
   
   // Load Voice Chat functionality
   try {
@@ -763,7 +748,7 @@
 
       const userEmail = document.createElement("span");
       userEmail.className = "user-email";
-      userEmail.textContent = `(${maskEmailForDisplay(user.email)})`;
+      userEmail.textContent = `(${user.email})`;
 
       userInfo.appendChild(userName);
       userInfo.appendChild(userEmail);
@@ -1994,16 +1979,6 @@
     _keyEmail(email) {
       // Converts "user.name@example.com" → "user*name@example*com"
       return email.replace(/\./g, "*");
-    }
-
-    _maskEmailForDisplay(email) {
-      // Converts "user.name@example.com" → "user*name@example*com" for display
-      return email.replace(/\./g, "*");
-    }
-
-    _unmaskEmailForParsing(maskedEmail) {
-      // Converts "user*name@example*com" → "user.name@example.com" for parsing
-      return maskedEmail.replace(/\*/g, ".");
     }
 
     _nodeRef(path) {
@@ -3517,7 +3492,7 @@
             } else {
               const topPlayers = sortedScores.slice(0, 10);
               for (let i = 0; i < topPlayers.length; i++) {
-                let playerText = `${i + 1}. ${topPlayers[i].email}: ${topPlayers[i].score}`;
+                let playerText = `${i + 1}. ${topPlayers[i].email.replace(/\*/g, ".")}: ${topPlayers[i].score}`;
                 await pushMessage(playerText);
               }
             }
@@ -5326,7 +5301,7 @@
 
     matches.forEach((match, idx) => {
       const div = document.createElement("div");
-      div.textContent = maskEmailForDisplay(match.email);
+      div.textContent = match.email;
 
       if (idx === mentionIndex) {
         div.className = "selected";
@@ -6424,7 +6399,7 @@
         members.forEach((member) => {
           const option = document.createElement("div");
           option.className = "member-option";
-          option.textContent = maskEmailForDisplay(member.email);
+          option.textContent = member.email;
           option.onclick = () => addMember(member);
           membersList.appendChild(option);
         });
@@ -6434,7 +6409,7 @@
         const memberElement = document.createElement("div");
         memberElement.className = "selected-member";
         memberElement.innerHTML = `
-    ${maskEmailForDisplay(member.email)}
+    ${member.email}
     <span class="remove-member">×</span>
 `;
 
