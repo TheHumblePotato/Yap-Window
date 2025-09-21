@@ -11,6 +11,20 @@
     let roomParticipants = new Set();
     let isMenuOpen = false;
 
+    // Email masking utility functions for voice chat
+    // These functions provide consistent email masking for privacy/security purposes
+    function maskEmailForDisplay(email) {
+        // Converts "user.name@example.com" → "user*name@example*com" for display
+        if (!email) return email;
+        return email.replace(/\./g, "*");
+    }
+
+    function unmaskEmailForParsing(maskedEmail) {
+        // Converts "user*name@example*com" → "user.name@example.com" for parsing
+        if (!maskedEmail) return maskedEmail;
+        return maskedEmail.replace(/\*/g, ".");
+    }
+
     // WebRTC configuration
     const iceServers = {
         iceServers: [
@@ -533,7 +547,7 @@
             
             participantElement.innerHTML = `
                 <span style="margin-right: 8px;">${statusIcon}</span>
-                <span style="flex: 1;">${participantEmail}${isCurrentUser ? ' (You)' : ''}</span>
+                <span style="flex: 1;">${maskEmailForDisplay(participantEmail)}${isCurrentUser ? ' (You)' : ''}</span>
                 <span style="color: #4CAF50; font-size: 12px;">●</span>
             `;
             
