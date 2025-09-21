@@ -45,7 +45,7 @@
                 display: flex;
                 flex-direction: column;
                 overflow: hidden;
-                font-family: 'Aptos', Calibri, sans-serif;
+                font-family: Aptos, Calibri, sans-serif;
             ">
                 <div class="menu-header" style="
                     display: flex;
