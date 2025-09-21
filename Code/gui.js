@@ -281,7 +281,7 @@
 
       #create-new-server {
         padding: 8px 5px;
-        background-color: ${isDark ? "#a65653" : "#5865F2"};
+        background-color: "#5865F2";
         color: white;
         border: none;
         border-radius: 4px;
@@ -293,7 +293,7 @@
       }
 
       #create-new-server:hover {
-        background-color: ${isDark ? "#c79d9b" : "#4752C4"};
+        background-color: "#4752C4"};
       }
 
       .server {
