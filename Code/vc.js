@@ -311,13 +311,37 @@
             return;
         }
         
-        createVoiceRoom(roomName, password);
+        createVoiceRoomWithRetry(roomName, password);
+    }
+
+    // Create voice room with retry logic to handle race conditions
+    function createVoiceRoomWithRetry(roomName, password, retryCount = 0) {
+        const maxRetries = 3;
+        const retryDelay = 500; // 500ms delay between retries
+        
+        if (retryCount > maxRetries) {
+            showError('Failed to create room after multiple attempts. Please try again.');
+            return;
+        }
+        
+        // Add a small delay if this is a retry to allow deletion to complete
+        const delay = retryCount > 0 ? retryDelay : 0;
+        
+        setTimeout(() => {
+            createVoiceRoom(roomName, password, (success) => {
+                if (!success && retryCount < maxRetries) {
+                    console.log(`Room creation failed, retrying... (${retryCount + 1}/${maxRetries})`);
+                    createVoiceRoomWithRetry(roomName, password, retryCount + 1);
+                }
+            });
+        }, delay);
     }
 
     // Core function to create voice room
-    function createVoiceRoom(roomName, password = null) {
+    function createVoiceRoom(roomName, password = null, callback = null) {
         if (typeof database === 'undefined') {
             showError('Database not available');
+            if (callback) callback(false);
             return;
         }
         
@@ -336,12 +360,18 @@
         
         get(roomRef).then((snapshot) => {
             if (snapshot.exists()) {
+                console.log('Room creation failed - room exists:', roomName);
+                console.log('Existing room data:', snapshot.val());
                 showError('Room name already exists');
+                if (callback) callback(false);
                 return;
             }
             
+            console.log('Creating new room:', roomName);
             return set(roomRef, roomData);
-        }).then(() => {
+        }).then((result) => {
+            if (result === undefined) return; // Early return from error case above
+            
             // Clear inputs
             const nameInput = document.getElementById('room-name-input');
             const passwordInput = document.getElementById('room-password-input');
@@ -350,9 +380,11 @@
             
             // Join the room
             joinVoiceRoom(roomName, password);
+            if (callback) callback(true);
         }).catch((error) => {
             console.error('Error creating room:', error);
             showError('Failed to create room');
+            if (callback) callback(false);
         });
     }
 
@@ -576,22 +608,28 @@
     function leaveVoiceRoom() {
         if (!currentVoiceRoom) return;
         
-        const roomRef = ref(database, `VoiceRooms/${currentVoiceRoom}/participants/${email.replace(/\./g, "*")}`);
+        const roomName = currentVoiceRoom; // Store room name before clearing
+        const roomRef = ref(database, `VoiceRooms/${roomName}/participants/${email.replace(/\./g, "*")}`);
         
         // Remove user from participants
         remove(roomRef).then(() => {
             // Check if room is empty and clean up
-            const roomParticipantsRef = ref(database, `VoiceRooms/${currentVoiceRoom}/participants`);
+            const roomParticipantsRef = ref(database, `VoiceRooms/${roomName}/participants`);
             return get(roomParticipantsRef);
         }).then((snapshot) => {
             const participants = snapshot.val();
+            console.log('Participants after user left:', participants);
+            
             if (!participants || Object.keys(participants).length === 0) {
-                // Room is empty, delete it
-                const roomRef = ref(database, `VoiceRooms/${currentVoiceRoom}`);
-                return remove(roomRef);
+                // Room is empty, delete entire room
+                console.log(`Room ${roomName} is empty, deleting...`);
+                const fullRoomRef = ref(database, `VoiceRooms/${roomName}`);
+                return remove(fullRoomRef).then(() => {
+                    console.log(`Successfully deleted empty room: ${roomName}`);
+                });
             }
         }).catch((error) => {
-            console.error('Error leaving room:', error);
+            console.error('Error leaving room or deleting empty room:', error);
         });
         
         // Close all peer connections
@@ -626,7 +664,7 @@
         
         get(roomRef).then((snapshot) => {
             const room = snapshot.val();
-            if (room && room.owner === email) {
+            if (room && room.owner === email.replace(/\./g, "*")) {
                 // Notify all participants about room deletion
                 notifyRoomDeletion(currentVoiceRoom);
                 // Remove room from database
@@ -708,6 +746,7 @@
         window.closeVoiceChatMenu = closeVoiceChatMenu;
         window.createNewVoiceRoom = createNewVoiceRoom;
         window.createVoiceRoom = createVoiceRoom;
+        window.createVoiceRoomWithRetry = createVoiceRoomWithRetry;
         window.joinVoiceRoom = joinVoiceRoom;
         window.leaveVoiceRoom = leaveVoiceRoom;
         window.deleteCurrentRoom = deleteCurrentRoom;
