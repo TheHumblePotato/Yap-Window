@@ -21,6 +21,17 @@
   let ADMIN_LIST = [];
   const email = auth.currentUser.email;
   console.log(email);
+  
+  // Load Voice Chat functionality
+  try {
+    const vcResponse = await fetch('./vc.js');
+    const vcCode = await vcResponse.text();
+    eval(vcCode);
+    console.log('Voice chat loaded successfully');
+  } catch (error) {
+    console.error('Failed to load voice chat:', error);
+  }
+  
   async function getAdmins() {
     const pathRef = ref(database, '/Chat Info/Staff chat (ADMIN, MOD)/Members');
     try {
@@ -6167,6 +6178,10 @@
     } catch (error) {
       console.error("Error marking all messages as read:", error);
     }
+  });
+
+  document.getElementById("voice-chat").addEventListener("click", function () {
+    toggleVoiceChatMenu();
   });
 
   gui.querySelector("#bookmarklet-close").onclick = function () {

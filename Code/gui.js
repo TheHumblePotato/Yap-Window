@@ -1541,6 +1541,7 @@
               <div class="dropdown-option" data-value="off">Off</div>
             </div>
           </div>
+          <button id="voice-chat" class="setting-button">🎤</button>
           <button id="modify-channel" class="setting-button" style="display: none">✏️</button>
       </div>
       <div id="lower-chat" class="chat">
