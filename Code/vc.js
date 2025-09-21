@@ -243,7 +243,7 @@
             
             const participantCount = Object.keys(roomData.participants).length;
             const isPasswordProtected = roomData.password !== null && roomData.password !== '';
-            const isOwner = roomData.owner === email;
+            const isOwner = roomData.owner === email.replace(/\./g, "*");
             const roomElement = createRoomListItem(roomName, participantCount, isPasswordProtected, isOwner);
             roomsList.appendChild(roomElement);
         }
@@ -323,10 +323,10 @@
         
         const roomData = {
             name: roomName,
-            owner: email,
+            owner: email.replace(/\./g, "*"),
             password: password,
             participants: {
-                [email]: { joined: Date.now(), status: 'connected' }
+                [email.replace(/\./g, "*")]: { joined: Date.now(), status: 'connected' }
             },
             created: Date.now(),
             maxParticipants: 5
@@ -397,7 +397,7 @@
             }
             
             // Add user to room participants
-            room.participants[email] = { joined: Date.now(), status: 'connected' };
+            room.participants[email.replace(/\./g, "*")] = { joined: Date.now(), status: 'connected' };
             
             return update(roomRef, { participants: room.participants });
         }).then(() => {
@@ -437,13 +437,16 @@
 
     // Establish P2P connections with other participants
     function establishPeerConnections(participants) {
-        const participantEmails = Object.keys(participants).filter(email => email !== window.email);
+        const currentUserMasked = email.replace(/\./g, "*");
+        const participantEmailsMasked = Object.keys(participants).filter(maskedEmail => maskedEmail !== currentUserMasked);
+        const participantEmails = participantEmailsMasked.map(masked => masked.replace(/\*/g, "."));
         
         // Remove connections for users who left
-        for (const [email, pc] of peerConnections) {
-            if (!participants[email]) {
+        for (const [userEmail, pc] of peerConnections) {
+            const userEmailMasked = userEmail.replace(/\./g, "*");
+            if (!participants[userEmailMasked]) {
                 pc.close();
-                peerConnections.delete(email);
+                peerConnections.delete(userEmail);
             }
         }
         
@@ -481,7 +484,7 @@
         // Handle ICE candidates
         pc.onicecandidate = (event) => {
             if (event.candidate && currentVoiceRoom) {
-                const candidateRef = ref(database, `VoiceRooms/${currentVoiceRoom}/signaling/${email}/candidates`);
+                const candidateRef = ref(database, `VoiceRooms/${currentVoiceRoom}/signaling/${email.replace(/\./g, "*")}/candidates`);
                 push(candidateRef, {
                     candidate: event.candidate,
                     target: participantEmail,
@@ -494,14 +497,14 @@
         pc.createOffer().then(offer => {
             return pc.setLocalDescription(offer);
         }).then(() => {
-            const offerRef = ref(database, `VoiceRooms/${currentVoiceRoom}/signaling/${email}/offers/${participantEmail}`);
+            const offerRef = ref(database, `VoiceRooms/${currentVoiceRoom}/signaling/${email.replace(/\./g, "*")}/offers/${participantEmail.replace(/\./g, "*")}`);
             return set(offerRef, pc.localDescription);
         }).catch(error => {
             console.error('Error creating offer:', error);
         });
         
         // Listen for answers
-        const answerRef = ref(database, `VoiceRooms/${currentVoiceRoom}/signaling/${participantEmail}/answers/${email}`);
+        const answerRef = ref(database, `VoiceRooms/${currentVoiceRoom}/signaling/${participantEmail.replace(/\./g, "*")}/answers/${email.replace(/\./g, "*")}`);
         onValue(answerRef, (snapshot) => {
             const answer = snapshot.val();
             if (answer && pc.remoteDescription === null) {
@@ -517,7 +520,8 @@
         
         participantsDiv.innerHTML = '';
         
-        Object.entries(participants).forEach(([participantEmail, data]) => {
+        Object.entries(participants).forEach(([participantEmailMasked, data]) => {
+            const participantEmail = participantEmailMasked.replace(/\*/g, ".");
             const participantElement = document.createElement('div');
             participantElement.style.cssText = `
                 display: flex;
@@ -561,7 +565,7 @@
             const roomRef = ref(database, `VoiceRooms/${roomName}`);
             get(roomRef).then((snapshot) => {
                 const room = snapshot.val();
-                if (room && room.owner === email) {
+                if (room && room.owner === email.replace(/\./g, "*")) {
                     deleteBtn.style.display = 'block';
                 }
             });
@@ -572,7 +576,7 @@
     function leaveVoiceRoom() {
         if (!currentVoiceRoom) return;
         
-        const roomRef = ref(database, `VoiceRooms/${currentVoiceRoom}/participants/${email}`);
+        const roomRef = ref(database, `VoiceRooms/${currentVoiceRoom}/participants/${email.replace(/\./g, "*")}`);
         
         // Remove user from participants
         remove(roomRef).then(() => {
