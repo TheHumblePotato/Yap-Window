@@ -64,9 +64,9 @@
       return;
     }
 
-  const guiPrimaryUrl = buildRawUrl("Code/guiPRE.js", true);
+  const guiPrimaryUrl = buildRawUrl("Code/gui.js", true);
       const guiFallbackUrl =
-        "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/guiPRE.js?token=$(date%20+%s)";
+        "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/gui.js?token=$(date%20+%s)";
 
     fetch(guiPrimaryUrl)
       .then((r) => {
@@ -92,9 +92,9 @@
             remove,
             child,
           };
-          const chatPrimaryUrl = buildRawUrl("Code/chatPRE.js", true);
+          const chatPrimaryUrl = buildRawUrl("Code/chat.js", true);
             const chatFallbackUrl =
-              "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/chatPRE.js?token=$(date%20+%s)";
+              "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/chat.js?token=$(date%20+%s)";
 
           fetch(chatPrimaryUrl)
             .then((r) => {

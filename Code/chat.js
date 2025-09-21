@@ -50,8 +50,8 @@
     return;
   }
 
-  const vcPrimaryUrl = "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/vcPRE.js?token=$(date%20+%s)";
-  const vcFallbackUrl = "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/vcPRE.js?token=$(date%20+%s)";
+  const vcPrimaryUrl = "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/vc.js?token=$(date%20+%s)";
+  const vcFallbackUrl = "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/vc.js?token=$(date%20+%s)";
 
   fetch(vcPrimaryUrl)
       .then(r => {
@@ -60,7 +60,7 @@
       })
       .then(r => r.text())
       .then(code => {
-          eval(code); // vcPRE.js functions now available globally
+          eval(code); // vc.js functions now available globally
       });
 
   getAdmins();
