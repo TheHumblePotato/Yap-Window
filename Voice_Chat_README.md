@@ -68,14 +68,35 @@ function joinVoiceRoom(roomName) {
 ```javascript
 // In chatPRE.js or guiPRE.js - can call vcPRE.js functions directly
 document.getElementById('voice-chat-toggle').onclick = function() {
-    toggleVoiceChat(); // Calls function from vcPRE.js
+    toggleVoiceChatMenu(); // Calls function from vcPRE.js
 };
 
-// Or when switching chat rooms
-function switchToChannel(channelName) {
-    currentChat = channelName;
-    if (voiceChatActive) {
-        joinVoiceRoom(currentChat); // Calls vcPRE.js function
+// Voice room management functions available globally
+createVoiceRoom("Room Name", "optional_password");
+joinVoiceRoom("Room Name", "password");
+deleteVoiceRoom("Room Name");
+leaveVoiceRoom();
+```
+
+**Manual Room Management:**
+```javascript
+// In vcPRE.js - manual room operations
+function loadAvailableRooms() {
+    database.ref('VoiceRooms').once('value', (snapshot) => {
+        const rooms = snapshot.val();
+        displayRoomsList(rooms);
+    });
+}
+
+function displayRoomsList(rooms) {
+    const roomsList = document.getElementById('rooms-list');
+    roomsList.innerHTML = '';
+    
+    for (const [roomName, roomData] of Object.entries(rooms)) {
+        const participantCount = Object.keys(roomData.participants).length;
+        const isPasswordProtected = roomData.password !== null;
+        const roomElement = createRoomListItem(roomName, participantCount, isPasswordProtected);
+        roomsList.appendChild(roomElement);
     }
 }
 ```
@@ -83,12 +104,12 @@ function switchToChannel(channelName) {
 #### 4. Variable Inheritance Pattern
 ```javascript
 // Variables from parent scope are inherited by eval'd code
-const email = "user@example.com";        // From loginPRE.js
-const currentChat = "general";            // From chatPRE.js
-const database = firebase.database();     // From loginPRE.js
+const email = "user@example.com";        // From loginPRE.js (user identifier & room owner)
+const database = firebase.database();     // From loginPRE.js (room storage & signaling)
+const auth = firebase.auth();             // From loginPRE.js (user authentication)
 
 // When vcPRE.js is eval'd, it inherits these variables automatically
-eval(vcCode); // vcPRE.js can now use email, currentChat, database directly
+eval(vcCode); // vcPRE.js can now use email, database, auth directly for room management
 ```
 
 #### 5. Loading Order & Timing
@@ -100,18 +121,21 @@ async function loadVoiceChat() {
     const vcCode = await fetch(vcUrl).then(r => r.text());
     eval(vcCode); // Functions now available globally
     
-    // 2. Add button after functions are loaded
-    const voiceButton = `<button onclick="toggleVoiceChat()">🎤</button>`;
+    // 2. Add button and menu after functions are loaded
+    const voiceButton = `<button onclick="toggleVoiceChatMenu()">🎤</button>`;
     document.getElementById('settings-bar').insertAdjacentHTML('beforeend', voiceButton);
+    
+    // 3. Initialize voice chat menu UI
+    initializeVoiceChatMenu();
 }
 
 // Or with error checking
-function safeToggleVoiceChat() {
-    if (typeof toggleVoiceChat === 'function') {
-        toggleVoiceChat();
+function safeToggleVoiceChatMenu() {
+    if (typeof toggleVoiceChatMenu === 'function') {
+        toggleVoiceChatMenu();
     } else {
         console.warn('Voice chat not yet loaded');
-        loadVoiceChat().then(() => toggleVoiceChat());
+        loadVoiceChat().then(() => toggleVoiceChatMenu());
     }
 }
 ```
@@ -119,24 +143,52 @@ function safeToggleVoiceChat() {
 ### System Integration
 The voice chat system is designed to be fetched and evaluated dynamically, inheriting key variables from the parent application:
 
-- **`email`** - Current user's email address (serves as unique identifier)
-- **`currentChat`** - Active chat room name (determines voice room to join)
-- **`database`** - Firebase Realtime Database instance
-- **`auth`** - Firebase Authentication instance
+- **`email`** - Current user's email address (serves as unique identifier and room owner)
+- **`database`** - Firebase Realtime Database instance (for room storage and signaling)
+- **`auth`** - Firebase Authentication instance (for user verification)
 
 ## Core Functionality
 
-### 1. Auto-Room Joining
+### 1. Voice Room Creation & Management
 ```javascript
-// Automatic room joining based on currentChat variable
-const voiceRoomName = currentChat; // Inherited from chat system
-joinVoiceRoom(voiceRoomName);
+// Voice room creation function
+function createVoiceRoom(roomName, password = null) {
+    const roomData = {
+        name: roomName,
+        owner: email, // Current user becomes owner
+        password: password,
+        participants: {
+            [email]: { joined: Date.now(), status: 'connected' }
+        },
+        created: Date.now(),
+        maxParticipants: 5
+    };
+    
+    database.ref(`VoiceRooms/${roomName}`).set(roomData);
+    joinVoiceRoom(roomName, password);
+}
+
+// Room deletion (owner only)
+function deleteVoiceRoom(roomName) {
+    const roomRef = database.ref(`VoiceRooms/${roomName}`);
+    roomRef.once('value', (snapshot) => {
+        const room = snapshot.val();
+        if (room && room.owner === email) {
+            // Notify all participants
+            notifyRoomDeletion(roomName);
+            // Remove room from database
+            roomRef.remove();
+        }
+    });
+}
 ```
 
-**Behavior:**
-- Automatically attempts to join voice room matching `currentChat` value
-- If room doesn't exist, creates new room with current user as first participant
-- Maximum 5 participants per room (hard limit enforced)
+**Features:**
+- **Manual Creation**: Users can create voice rooms with custom names
+- **Password Protection**: Optional password for private rooms
+- **Room Ownership**: Creator becomes owner with delete permissions
+- **Participant Limit**: Maximum 5 participants per room (hard limit enforced)
+- **Owner Controls**: Only room owner can delete the room
 
 ### 2. Room Management
 ```javascript
@@ -153,40 +205,79 @@ if (participants.length === 0) {
 
 ### 3. User Interface Integration
 
-#### Voice Chat Button Integration
+#### Voice Chat Menu Integration
 ```javascript
-// Button added to existing GUI (in guiPRE.js or chatPRE.js)
+// Voice chat button and menu added to existing GUI
 const voiceButton = `
-    <button id="voice-chat-toggle" class="setting-button" onclick="toggleVoiceChat()" title="Voice Chat">🎤</button>
+    <button id="voice-chat-toggle" class="setting-button" onclick="toggleVoiceChatMenu()" title="Voice Chat">🎤</button>
 `;
 document.getElementById('settings-bar').insertAdjacentHTML('beforeend', voiceButton);
+
+// Voice chat menu overlay
+const voiceChatMenu = `
+    <div id="voice-chat-menu" class="voice-menu hidden">
+        <div class="menu-header">
+            <h3>Voice Chat Rooms</h3>
+            <button onclick="closeVoiceChatMenu()">×</button>
+        </div>
+        
+        <div class="create-room-section">
+            <h4>Create New Room</h4>
+            <input id="room-name-input" type="text" placeholder="Room name" maxlength="20">
+            <input id="room-password-input" type="password" placeholder="Password (optional)">
+            <button onclick="createNewVoiceRoom()">Create Room</button>
+        </div>
+        
+        <div class="available-rooms-section">
+            <h4>Available Rooms</h4>
+            <div id="rooms-list"></div>
+        </div>
+        
+        <div class="current-room-section" style="display: none;">
+            <h4>Current Room: <span id="current-room-name"></span></h4>
+            <div id="room-participants"></div>
+            <button id="leave-room-btn" onclick="leaveVoiceRoom()">Leave Room</button>
+            <button id="delete-room-btn" onclick="deleteCurrentRoom()" style="display: none;">Delete Room</button>
+        </div>
+    </div>
+`;
 ```
 
-**Function Call in vcPRE.js:**
+**Functions in vcPRE.js:**
 ```javascript
-// Main voice chat function exposed globally
-function toggleVoiceChat() {
+// Toggle voice chat menu visibility
+function toggleVoiceChatMenu() {
+    const menu = document.getElementById('voice-chat-menu');
     const rightSidebar = document.getElementById('right-sidebar');
     
-    if (voiceChatActive) {
-        // Hide voice chat and restore sidebar
-        hideVoiceChat();
-        rightSidebar.style.filter = 'none';
-        voiceChatActive = false;
-    } else {
-        // Show voice chat and blur sidebar
-        showVoiceChat();
+    if (menu.classList.contains('hidden')) {
+        menu.classList.remove('hidden');
         rightSidebar.style.filter = 'blur(2px)';
-        voiceChatActive = true;
+        loadAvailableRooms();
+    } else {
+        menu.classList.add('hidden');
+        rightSidebar.style.filter = 'none';
+    }
+}
+
+// Create new voice room
+function createNewVoiceRoom() {
+    const roomName = document.getElementById('room-name-input').value.trim();
+    const password = document.getElementById('room-password-input').value.trim() || null;
+    
+    if (roomName) {
+        createVoiceRoom(roomName, password);
     }
 }
 ```
 
-**Button Features:**
-- **Direct Function Call**: Button directly calls `toggleVoiceChat()` from vcPRE.js
-- **Global Scope Access**: Function available across all loaded scripts
-- **Overlay Effect**: Blurs `right-sidebar` div when voice chat is active
-- **State Management**: Tracks active/inactive status
+**Menu Features:**
+- **Room Creation**: Interface for creating custom voice rooms
+- **Password Protection**: Optional password field for private rooms
+- **Room Browser**: List of available public rooms
+- **Current Room Display**: Shows current room info and participants
+- **Owner Controls**: Delete button visible only to room owners
+- **Overlay Effect**: Blurs `right-sidebar` div when menu is open
 
 #### Participant Display
 ```javascript
@@ -231,7 +322,12 @@ await database.ref(`${signalingPath}/${targetEmail}/answer`).set(answer);
 ```javascript
 // Room data structure in Firebase
 VoiceRooms: {
-    [currentChat]: {
+    [roomName]: {
+        name: "Room Name",
+        owner: "owner@email.com",
+        password: "optional_password_hash", // null for public rooms
+        created: timestamp,
+        maxParticipants: 5,
         participants: {
             [email1]: { joined: timestamp, status: 'connected' },
             [email2]: { joined: timestamp, status: 'connected' }
@@ -242,67 +338,128 @@ VoiceRooms: {
         }
     }
 }
+
+// Room joining with password verification
+function joinVoiceRoom(roomName, password = null) {
+    const roomRef = database.ref(`VoiceRooms/${roomName}`);
+    roomRef.once('value', (snapshot) => {
+        const room = snapshot.val();
+        
+        if (!room) {
+            showError('Room does not exist');
+            return;
+        }
+        
+        if (room.password && room.password !== hashPassword(password)) {
+            showError('Incorrect password');
+            return;
+        }
+        
+        if (Object.keys(room.participants).length >= room.maxParticipants) {
+            showError('Room is full (5/5 participants)');
+            return;
+        }
+        
+        // Join the room
+        room.participants[email] = { joined: Date.now(), status: 'connected' };
+        roomRef.update({ participants: room.participants });
+        establishPeerConnections(room.participants);
+    });
+}
 ```
 
 ## User Experience Flow
 
-### 1. Joining Voice Chat
-1. User clicks voice chat toggle button
-2. System checks `currentChat` variable for room name
-3. Requests microphone permission (first time only)
-4. Connects to existing room or creates new one
-5. Establishes P2P connections with existing participants
-6. Updates UI to show connected status
+### 1. Opening Voice Chat Menu
+1. User clicks voice chat button (🎤) in settings bar
+2. Voice chat menu overlay appears, blurring the right sidebar
+3. Menu shows available rooms and room creation interface
+4. System requests microphone permission (first time only)
 
-### 2. Active Voice Session
+### 2. Creating a Voice Room
+1. User enters room name in "Create New Room" section
+2. Optionally enters password for private room
+3. Clicks "Create Room" button
+4. System creates room with user as owner
+5. User automatically joins the newly created room
+6. Menu switches to "Current Room" view
+7. Room appears in other users' available rooms list
+
+### 3. Joining an Existing Room
+1. User sees available rooms in "Available Rooms" section
+2. Clicks on desired room name
+3. If password-protected, system prompts for password
+4. If room has space (less than 5 participants), user joins
+5. Establishes P2P connections with existing participants
+6. Menu updates to show current room status
+
+### 4. Active Voice Session
 - **Real-time Audio**: Direct P2P streaming between participants
 - **Participant List**: Live updates as users join/leave
 - **Visual Indicators**: Speaking animation, mute status
-- **Room Synchronization**: Automatic sync with text chat room changes
+- **Room Management**: Owner sees delete button for their rooms
+- **Capacity Monitoring**: Visual indication of room capacity (X/5 participants)
 
-### 3. Leaving Voice Chat
-1. User clicks toggle button to hide interface OR navigates to different chat
+### 5. Managing Rooms (Owner)
+1. Room owner sees "Delete Room" button in current room section
+2. Clicking delete button removes room from database
+3. All participants are automatically disconnected
+4. Participants receive notification about room deletion
+5. Menu returns to available rooms view
+
+### 6. Leaving Voice Chat
+**Leaving Current Room:**
+1. User clicks "Leave Room" button
 2. Closes all P2P connections
-3. Removes user from Firebase room participants list
-4. Triggers room cleanup if last participant
-5. Updates UI for remaining participants
+3. Removes user from room participants list
+4. Returns to available rooms view
+5. If last participant, room may be auto-deleted (unless owner wants to keep it)
+
+**Closing Voice Menu:**
+1. User clicks × button or voice chat button again
+2. Menu closes and right sidebar is restored
+3. If in a voice room, user remains connected in background
+4. Voice chat continues without UI overlay
 
 ## Integration Points
 
 ### Chat System Integration (chatPRE.js)
 ```javascript
-// Voice chat initialization when entering chat room
-function switchToChannel(channelName) {
-    currentChat = channelName;
-    // Existing chat switching logic...
-    
-    // Auto-update voice room if voice chat is active
-    if (voiceChatActive) {
-        leaveCurrentVoiceRoom();
-        joinVoiceRoom(currentChat);
-    }
-}
+// Voice chat operates independently of text chat channels
+// No integration code needed in chatPRE.js
+
+// Text chat and voice chat are completely separate systems
+// Users can be in different text channels while in the same voice room
+// Voice rooms persist across text channel navigation
 ```
+
+**Independent Operation Benefits:**
+- **No Code Changes**: Existing chat logic remains completely unchanged
+- **Cross-Channel Communication**: Voice rooms work across different text channels
+- **Decoupled Design**: Voice chat module is completely independent
+- **Persistent Connections**: Voice rooms don't break when switching text channels
+- **Flexible Usage**: Users can coordinate voice and text separately
 
 ### GUI Integration (guiPRE.js)
 ```javascript
 // Add voice chat button to settings bar using cross-file function call
 const voiceButton = `
-    <button id="voice-chat-toggle" class="setting-button" onclick="toggleVoiceChat()" title="Voice Chat">🎤</button>
+    <button id="voice-chat-toggle" class="setting-button" onclick="toggleVoiceChatMenu()" title="Voice Chat">🎤</button>
 `;
 document.getElementById('settings-bar').insertAdjacentHTML('beforeend', voiceButton);
 
 // Alternative event listener approach
 document.getElementById('voice-chat-toggle').addEventListener('click', function() {
-    toggleVoiceChat(); // Calls function from vcPRE.js after it's loaded
+    toggleVoiceChatMenu(); // Calls function from vcPRE.js after it's loaded
 });
 ```
 
-**Button Implementation Details:**
-- **HTML onclick**: Direct function call in button HTML
-- **Event Listener**: JavaScript event binding after button creation  
-- **Function Availability**: `toggleVoiceChat()` must be loaded before button use
-- **Error Handling**: Check if function exists before calling
+**Menu Integration Details:**
+- **HTML onclick**: Direct function call to open voice chat menu
+- **Menu Overlay**: Full room management interface appears over right sidebar
+- **Function Availability**: `toggleVoiceChatMenu()` must be loaded before button use
+- **Dynamic Content**: Menu content updates based on current room status and available rooms
+- **Owner Controls**: Delete buttons appear only for room owners
 
 ### Authentication Integration (loginPRE.js)
 ```javascript
@@ -384,6 +541,10 @@ const userEmail = auth.currentUser.email; // Becomes global 'email' variable
 - **Event-Driven**: Uses existing chat system event patterns
 - **Async/Await**: Modern JavaScript patterns throughout
 - **Error Boundaries**: Comprehensive error handling
+- **Manual Room Management**: User-controlled room creation and deletion
+- **Decoupled Architecture**: Voice chat operates independently from chat system
+- **Variable Inheritance**: Leverages global scope for seamless integration
+- **Owner-Based Permissions**: Room creators have management privileges
 
 ### Testing Strategy
 - **Unit Tests**: Individual function testing
