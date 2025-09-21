@@ -9,10 +9,10 @@ The Yap Window P2P Voice Chat system is a browser-based, peer-to-peer voice comm
 ### File Structure
 ```
 Code/
-├── vcPRE.js          # Voice chat implementation (main file)
-├── chatPRE.js        # Chat system integration
-├── guiPRE.js         # UI components and styling
-└── loginPRE.js       # Authentication and user management
+├── vc.js          # Voice chat implementation (main file)
+├── chat.js        # Chat system integration
+├── gui.js         # UI components and styling
+└── login.js       # Authentication and user management
 ```
 
 ### GitHub Repository Configuration
@@ -20,14 +20,14 @@ The voice chat system loads from the **beta branch** of the Yap Window repositor
 
 **URL Format:**
 ```
-https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/vcPRE.js?token=$(date%20+%s)
+https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/vc.js?token=$(date%20+%s)
 ```
 
 **Key Details:**
 - **Repository**: TheHumblePotato/Yap-Window
 - **Branch**: `beta` (development branch)
 - **Cache Busting**: `?token=$(date%20+%s)` ensures fresh content
-- **Path**: `/Code/vcPRE.js` in repository structure
+- **Path**: `/Code/vc.js` in repository structure
 
 ### Cross-File Function Calling Mechanism
 
@@ -35,9 +35,9 @@ The Yap Window application uses a **fetch-and-eval** architecture that enables s
 
 #### 1. Dynamic Script Loading Pattern
 ```javascript
-// Example from loginPRE.js loading vcPRE.js
-const vcPrimaryUrl = "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/vcPRE.js?token=$(date%20+%s)";
-const vcFallbackUrl = "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/vcPRE.js?token=$(date%20+%s)";
+// Example from login.js loading vc.js
+const vcPrimaryUrl = "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/vc.js?token=$(date%20+%s)";
+const vcFallbackUrl = "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/vc.js?token=$(date%20+%s)";
 
 fetch(vcPrimaryUrl)
     .then(r => {
@@ -46,13 +46,13 @@ fetch(vcPrimaryUrl)
     })
     .then(r => r.text())
     .then(code => {
-        eval(code); // vcPRE.js functions now available globally
+        eval(code); // vc.js functions now available globally
     });
 ```
 
 #### 2. Global Scope Function Exposure
 ```javascript
-// In vcPRE.js - functions declared in global scope
+// In vc.js - functions declared in global scope
 function toggleVoiceChat() {
     // Voice chat logic here
 }
@@ -66,9 +66,9 @@ function joinVoiceRoom(roomName) {
 
 #### 3. Cross-File Function Access
 ```javascript
-// In chatPRE.js or guiPRE.js - can call vcPRE.js functions directly
+// In chat.js or gui.js - can call vc.js functions directly
 document.getElementById('voice-chat-toggle').onclick = function() {
-    toggleVoiceChatMenu(); // Calls function from vcPRE.js
+    toggleVoiceChatMenu(); // Calls function from vc.js
 };
 
 // Voice room management functions available globally
@@ -80,7 +80,7 @@ leaveVoiceRoom();
 
 **Manual Room Management:**
 ```javascript
-// In vcPRE.js - manual room operations
+// In vc.js - manual room operations
 function loadAvailableRooms() {
     database.ref('VoiceRooms').once('value', (snapshot) => {
         const rooms = snapshot.val();
@@ -104,20 +104,20 @@ function displayRoomsList(rooms) {
 #### 4. Variable Inheritance Pattern
 ```javascript
 // Variables from parent scope are inherited by eval'd code
-const email = "user@example.com";        // From loginPRE.js (user identifier & room owner)
-const database = firebase.database();     // From loginPRE.js (room storage & signaling)
-const auth = firebase.auth();             // From loginPRE.js (user authentication)
+const email = "user@example.com";        // From login.js (user identifier & room owner)
+const database = firebase.database();     // From login.js (room storage & signaling)
+const auth = firebase.auth();             // From login.js (user authentication)
 
-// When vcPRE.js is eval'd, it inherits these variables automatically
-eval(vcCode); // vcPRE.js can now use email, database, auth directly for room management
+// When vc.js is eval'd, it inherits these variables automatically
+eval(vcCode); // vc.js can now use email, database, auth directly for room management
 ```
 
 #### 5. Loading Order & Timing
 ```javascript
-// Typical loading sequence in loginPRE.js or chatPRE.js
+// Typical loading sequence in login.js or chat.js
 async function loadVoiceChat() {
-    // 1. Load and execute vcPRE.js
-    const vcUrl = "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/vcPRE.js?token=$(date%20+%s)";
+    // 1. Load and execute vc.js
+    const vcUrl = "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/vc.js?token=$(date%20+%s)";
     const vcCode = await fetch(vcUrl).then(r => r.text());
     eval(vcCode); // Functions now available globally
     
@@ -243,7 +243,7 @@ const voiceChatMenu = `
 `;
 ```
 
-**Functions in vcPRE.js:**
+**Functions in vc.js:**
 ```javascript
 // Toggle voice chat menu visibility
 function toggleVoiceChatMenu() {
@@ -423,10 +423,10 @@ function joinVoiceRoom(roomName, password = null) {
 
 ## Integration Points
 
-### Chat System Integration (chatPRE.js)
+### Chat System Integration (chat.js)
 ```javascript
 // Voice chat operates independently of text chat channels
-// No integration code needed in chatPRE.js
+// No integration code needed in chat.js
 
 // Text chat and voice chat are completely separate systems
 // Users can be in different text channels while in the same voice room
@@ -440,7 +440,7 @@ function joinVoiceRoom(roomName, password = null) {
 - **Persistent Connections**: Voice rooms don't break when switching text channels
 - **Flexible Usage**: Users can coordinate voice and text separately
 
-### GUI Integration (guiPRE.js)
+### GUI Integration (gui.js)
 ```javascript
 // Add voice chat button to settings bar using cross-file function call
 const voiceButton = `
@@ -450,7 +450,7 @@ document.getElementById('settings-bar').insertAdjacentHTML('beforeend', voiceBut
 
 // Alternative event listener approach
 document.getElementById('voice-chat-toggle').addEventListener('click', function() {
-    toggleVoiceChatMenu(); // Calls function from vcPRE.js after it's loaded
+    toggleVoiceChatMenu(); // Calls function from vc.js after it's loaded
 });
 ```
 
@@ -461,7 +461,7 @@ document.getElementById('voice-chat-toggle').addEventListener('click', function(
 - **Dynamic Content**: Menu content updates based on current room status and available rooms
 - **Owner Controls**: Delete buttons appear only for room owners
 
-### Authentication Integration (loginPRE.js)
+### Authentication Integration (login.js)
 ```javascript
 // Inherit user email from authentication system
 const userEmail = auth.currentUser.email; // Becomes global 'email' variable
