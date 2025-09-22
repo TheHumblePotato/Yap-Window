@@ -436,7 +436,6 @@
             currentVoiceRoom = roomName;
             initializeVoiceConnection(roomName);
             updateCurrentRoomDisplay(roomName);
-            closeVoiceChatMenu();
         }).catch((error) => {
             console.error('Error joining room:', error);
             showError('Failed to join room');
