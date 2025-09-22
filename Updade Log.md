@@ -1,168 +1,119 @@
+### **Update Log:**
 
-### Update Log:
+#### **Version 1.0 – Initial Release**
 
-#### Version 1.0 – Initial Release
+**Date**: 2024-12-19 PST
 
-Date: 2024-12-19 PST
+* Added login and account creation.  
+* Introduced chat screen and **'general' channel** for messaging.
 
--   Added login and account creation.
-    
--   Introduced chat screen and 'general' channel for messaging.
-    
+---
 
-----------
+#### **Version 1.1 – Message Enhancements**
 
-#### Version 1.1 – Message Enhancements
+**Date**: 2024-12-19 PST
 
-Date: 2024-12-19 PST
+* Added **THIS Update Menu** for easy tracking.  
+* Messages now auto-delete after 1 month.  
+* Limited message length to 1000 characters.
 
--   Added THIS Update Menu for easy tracking.
-    
--   Messages now auto-delete after 1 month.
-    
--   Limited message length to 1000 characters.
-    
+---
 
-----------
+#### **Version 1.2 – Dark Mode**
 
-#### Version 1.2 – Dark Mode
+**Date**: 2024-12-19 PST
 
-Date: 2024-12-19 PST
+* Added **Dark Mode** that toggles based on tab (dark or light).
 
--   Added Dark Mode that toggles based on tab (dark or light).
-    
+---
 
-----------
+#### **Version 1.3 – Bug Fixes & Performance Improvements**
 
-#### Version 1.3 – Bug Fixes & Performance Improvements
+**Date**: 2024-12-21 PST
 
-Date: 2024-12-21 PST
+* Fixed scrolling bug.  
+* Applied styling fixes and reduced lag by limiting message loads.
 
--   Fixed scrolling bug.
-    
--   Applied styling fixes and reduced lag by limiting message loads.
-    
+---
 
-----------
+#### **Version 2.0 – Feature Additions & Fixes**
 
-#### Version 2.0 – Feature Additions & Fixes
+**Date**: 2024-12-22 PST
 
-Date: 2024-12-22 PST
+* Fixed scrolling bug again.  
+* Added dark mode switching via **CTRL-ALT-D**.  
+* Introduced **Create Channel** feature.  
+* Removed update 1.1 due to changes in features.
 
--   Fixed scrolling bug again.
-    
--   Added dark mode switching via CTRL-ALT-D.
-    
--   Introduced Create Channel feature.
-    
--   Removed update 1.1 due to changes in features.
-    
+---
 
-----------
+#### **Version 2.1 – Unread Messages & Profile Customization**
 
-#### Version 2.1 – Unread Messages & Profile Customization
+**Date**: 2025-02-4 PST
 
-Date: 2025-02-4 PST
+* Unread messages functionality has been added.  
+* A selected channel indicator is now visible.  
+* Several bugs have been patched.  
+* A new **Profile Customization** button has been added.  
+* A **Settings bar** is now available.  
+* Restructured code
 
--   Unread messages functionality has been added.
-    
--   A selected channel indicator is now visible.
-    
--   Several bugs have been patched.
-    
--   A new Profile Customization button has been added.
-    
--   A Settings bar is now available.
-    
--   Restructured code
-    
+---
 
-----------
+#### **Version 2.2 aka 3.7 \[Released\] – Email Verification & Bots**
 
-#### Version 2.2 aka 3.7 [Released] – Email Verification & Bots
+**Release Date**: 2025-03-07 PST
 
-Release Date: 2025-03-07 PST
+* Added **email verification** for improved security.  
+* Implemented additional **security features**.  
+* Introduced **bots**:  
+  * /ai – AI-powered responses.  
+  * /coinflip – Flips a virtual coin.  
+  * /roll – Rolls a random number.  
+* Added **temporary Easter eggs** (find them while they last\!).
 
--   Added email verification for improved security.
-    
--   Implemented additional security features.
-    
--   Introduced bots:
-    
+---
 
--   /ai – AI-powered responses.
-    
--   /coinflip – Flips a virtual coin.
-    
--   /roll – Rolls a random number.
-    
+#### **Version 2.3 \[Released\] – Snake and other Bots**
 
--   Added temporary Easter eggs (find them while they last!).
-    
+**Release Date**: 2025-04-01 PST
 
-----------
+* Introduced  new **bots**:  
+  * /eod \- Responds with yes, no or maybe  
+  * /snake \- Opens a game of snake in yap window  
+  * /snake leaderboard \- Shows the current snake leaderboard
 
-#### Version 2.3 [Released] – Snake and other Bots
+---
 
-Release Date: 2025-04-01 PST
+#### **Version 3.0 \[Released\] – Full Revamp**
 
--   Introduced new bots:
-    
+**Release Date**: 2025-04-23 PST
 
--   /eod - Responds with yes, no or maybe
-    
--   /snake - Opens a game of snake in yap window
-    
--   /snake leaderboard - Shows the current snake leaderboard
-    
+* More security  
+* Better Stay Logged in feature  
+* Fixed Minimize Button  
+* Preventing 2+ Yap Windows Opening  
+* Channel Modifying  
+* Better top bar  
+* Style in messages  
+* Links  
+* Fixing bug of messages showing up out of order  
+* Fixing Auto-scroll to First Unread Message  
+* Usernames in messages  
+* Files & Images  
+* Seeing who's online  
+* Messaging people with @  
+* Channel Types (Private, Public)
 
-----------
+---
 
-#### Version 3.0 [Released] – Full Revamp
 
-Release Date: 2025-04-23 PST
+#### **Version 4.0 \[WIP\] – Add VC, Typing indicators, and more.**
 
--   More security
-    
--   Better Stay Logged in feature
-    
--   Fixed Minimize Button
-    
--   Preventing 2+ Yap Windows Opening
-    
--   Channel Modifying
-    
--   Better top bar
-    
--   Style in messages
-    
--   Links
-    
--   Fixing bug of messages showing up out of order
-    
--   Fixing Auto-scroll to First Unread Message
-    
--   Usernames in messages
-    
--   Files & Images
-    
--   Seeing who's online
-    
--   Messaging people with @
-    
--   Channel Types
-    
+**Release Date**: 2025-11-23 PST
 
-----------
-
-#### Version 4.0 [WIP] – Add VC, Typing indicators, and more.
-
-Release Date: 2025-10-1 PST
-
--   Add VC panel ot Yap Window
-    
--   Update website code
-    
--   Block AI use during schooltime.
-    
--   Add typing indicators
+* Add VC panel ot Yap Window  
+* Update website code  
+* Add typing indicators  
+* Show Profile Pictures  
+* Bug fixes
