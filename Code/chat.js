@@ -21,11 +21,24 @@
   let ADMIN_LIST = [];
   const email = auth.currentUser.email;
 
-  console.log(auth.currentUser);
+  console.log(auth.currentUser.email);
   
   // Load Voice Chat functionality
   try {
-    const vcResponse = await fetch('./vc.js');
+    const ts = Math.floor(Date.now() / 1000);
+    const vcPrimaryUrl = `https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/vc.js?token=${ts}`;
+    const vcFallbackUrl = "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/vc.js";
+    
+    let vcResponse;
+    try {
+      vcResponse = await fetch(vcPrimaryUrl);
+      if (!vcResponse.ok) {
+        vcResponse = await fetch(vcFallbackUrl);
+      }
+    } catch (error) {
+      vcResponse = await fetch(vcFallbackUrl);
+    }
+    
     const vcCode = await vcResponse.text();
     eval(vcCode);
     console.log('Voice chat loaded successfully');
