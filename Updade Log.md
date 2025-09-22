@@ -1,3 +1,4 @@
+
 ### Update Log:
 
 #### Version 1.0 – Initial Release
@@ -101,7 +102,7 @@ Release Date: 2025-03-07 PST
 
 ----------
 
-#### Version 2.3 [Released] – Snake
+#### Version 2.3 [Released] – Snake and other Bots
 
 Release Date: 2025-04-01 PST
 
@@ -117,7 +118,7 @@ Release Date: 2025-04-01 PST
 
 ----------
 
-#### Version 3.0 [WIP] – Full Revamp
+#### Version 3.0 [Released] – Full Revamp
 
 Release Date: 2025-04-23 PST
 
@@ -133,11 +134,9 @@ Release Date: 2025-04-23 PST
     
 -   Better top bar
     
--   Fonts & Style in messages
+-   Style in messages
     
 -   Links
-    
--   Adding Message Color For Bots
     
 -   Fixing bug of messages showing up out of order
     
@@ -151,8 +150,19 @@ Release Date: 2025-04-23 PST
     
 -   Messaging people with @
     
--   Improving AI bot
-    
--   Typing indicator
-    
 -   Channel Types
+    
+
+----------
+
+#### Version 4.0 [WIP] – Add VC, Typing indicators, and more.
+
+Release Date: 2025-10-1 PST
+
+-   Add VC panel ot Yap Window
+    
+-   Update website code
+    
+-   Block AI use during schooltime.
+    
+-   Add typing indicators
