@@ -42,7 +42,7 @@
                 border-radius: 12px;
                 box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
                 z-index: 1000000;
-                display: flex;
+                display: none;
                 flex-direction: column;
                 overflow: hidden;
                 font-family: Aptos, Calibri, sans-serif;
@@ -428,17 +428,27 @@
                 leaveVoiceRoom();
             }
             
-            // Add user to room participants
-            room.participants[email.replace(/\./g, "*")] = { joined: Date.now(), status: 'connected' };
+            // Use atomic operation to add participant - this prevents race conditions
+            const userEmail = email.replace(/\./g, "*");
+            const participantRef = ref(database, `VoiceRooms/${roomName}/participants/${userEmail}`);
+            const participantData = { joined: Date.now(), status: 'connected' };
             
-            return update(roomRef, { participants: room.participants });
+            return set(participantRef, participantData);
         }).then(() => {
             currentVoiceRoom = roomName;
             initializeVoiceConnection(roomName);
             updateCurrentRoomDisplay(roomName);
         }).catch((error) => {
             console.error('Error joining room:', error);
-            showError('Failed to join room');
+            
+            // Provide more specific error messages based on error type
+            if (error.code === 'PERMISSION_DENIED') {
+                showError('Permission denied: You may not have access to join this room. Please check if you are logged in and have the required permissions.');
+            } else if (error.message && error.message.includes('PERMISSION_DENIED')) {
+                showError('Permission denied: Database access restricted. Please ensure you are properly authenticated.');
+            } else {
+                showError('Failed to join room: ' + (error.message || 'Unknown error'));
+            }
         });
     }
 

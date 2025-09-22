@@ -20,8 +20,8 @@
   };
   let ADMIN_LIST = [];
   const email = auth.currentUser.email;
-  console.log(email);
 
+  console.log(auth.currentUser);
   
   // Load Voice Chat functionality
   try {
