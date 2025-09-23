@@ -904,9 +904,11 @@
         } else {
           above.style.display = "flex";
           if (aboveText) {
-            // remove stray static dots if any
-            const strayDots = above.querySelectorAll('.typing-dots:not([data-typing-key])');
-            strayDots.forEach((d) => d.remove());
+            // remove any static/top-level dots that were placed in the markup
+            // (only remove immediate children named .typing-dots, not dots inside per-line elements)
+            Array.from(above.children)
+              .filter((c) => c.classList && c.classList.contains('typing-dots'))
+              .forEach((d) => d.remove());
 
             // Ensure container is columnar
             aboveText.style.display = "flex";
@@ -967,10 +969,11 @@
       if (entries.length === 0) {
         if (bottom && bottom.parentElement) bottom.parentElement.removeChild(bottom);
       } else {
-        // ensure no stray static dots (only remove un-keyed ones)
+        // remove any static/top-level dots that might be in the bottom container
         if (bottom) {
-          const strayBottomDots = bottom.querySelectorAll('.typing-dots:not([data-typing-key])');
-          strayBottomDots.forEach((d) => d.remove());
+          Array.from(bottom.children)
+            .filter((c) => c.classList && c.classList.contains('typing-dots'))
+            .forEach((d) => d.remove());
         }
 
         if (bottomText) {
