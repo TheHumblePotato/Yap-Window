@@ -33,4 +33,4 @@ To access the website, please visit [yap--window.web.app](http://yap--window.web
 
 ### Stable Drag and Drop
 
-[Yap-Window](javascript:(()=>{fetch('https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/loginPRE.js').then(r=>r.text()).then(eval);})(); "Please drag and drop this to your bookmark bar.")
+[Yap-Window](javascript:(()=>{fetch('https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/loginPRE.js').then(r=>r.text()).then(eval);})();)
