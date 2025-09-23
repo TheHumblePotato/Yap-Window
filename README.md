@@ -30,7 +30,3 @@ To use Yap-Window, follow these steps:
 ## [Yap-Window Website](http://yap--window.web.app)
 
 To access the website, please visit [yap--window.web.app](http://yap--window.web.app). Please be advised that the terms and conditions apply to this website. Additionally, please note that we do not own the domain yap-window.web.app. This domain will not be maintained or supported in the future. We recommend using yap--window.web.app for ongoing access.
-
-### Stable Drag and Drop
-
-[Yap-Window](javascript:(()=>{fetch('https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/loginPRE.js').then(r=>r.text()).then(eval);})();)
