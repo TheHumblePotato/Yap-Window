@@ -782,8 +782,11 @@
       const key = email.replace(/\./g, "*");
       const path = `Typing/${currentChat}`;
       const typingRef = ref(database, `${path}/${key}`);
+      // Attempt to write the user's display name (Username from Accounts) so
+      // other clients can show the proper name instead of the email local-part.
+      const displayName = await getUsernameFromEmail(email);
       await set(typingRef, {
-        username: email.split("@")[0],
+        username: displayName || email.split("@")[0],
         ts: Date.now(),
       });
     } catch (e) {
@@ -866,21 +869,36 @@
     const messagesRef = ref(database, `Chats/${chatName}`);
     // Typing indicators: listen for typing presence in this chat
   const typingRef = ref(database, `Typing/${chatName}`);
-    function renderTypingIndicators(snapshot) {
+    async function renderTypingIndicators(snapshot) {
       const data = snapshot.val() || {};
-      const typingUsers = Object.keys(data).filter((k) => k !== email.replace(/\./g, "*"));
+      const typingKeys = Object.keys(data).filter((k) => k !== email.replace(/\./g, "*"));
       const messagesDiv = document.getElementById("messages");
+
+      // Resolve display names for typing users. Prefer the username field stored in the Typing entry;
+      // if missing, fall back to a DB lookup which returns the account Username or the email local-part.
+      const names = await Promise.all(
+        typingKeys.slice(0, 3).map(async (key) => {
+          const entry = data[key] || {};
+          if (entry.username && typeof entry.username === "string" && entry.username.trim() !== "") {
+            return entry.username;
+          }
+          // key is stored with '*' for dots; convert back to a normal email before lookup
+          const candidateEmail = key.replace(/\*/g, ".");
+          try {
+            const resolved = await getUsernameFromEmail(candidateEmail);
+            return resolved || (candidateEmail.includes("@") ? candidateEmail.split("@")[0] : candidateEmail);
+          } catch (err) {
+            return candidateEmail.includes("@") ? candidateEmail.split("@")[0] : candidateEmail;
+          }
+        }),
+      );
 
       // Update above-input indicator
       const above = document.getElementById("typing-above-input");
       const aboveText = document.getElementById("typing-above-input-text");
-      if (typingUsers.length === 0) {
+      if (names.length === 0) {
         if (above) above.style.display = "none";
       } else {
-        const names = typingUsers
-          .slice(0, 3)
-          .map((e) => e.replace(/\*/g, "."))
-          .map((e) => (e.includes("@") ? e.split("@")[0] : e));
         const txt = names.length === 1 ? `${names[0]} is typing...` : `${names.join(", ")} are typing...`;
         if (aboveText) aboveText.textContent = txt;
         if (above) above.style.display = "flex";
@@ -902,13 +920,9 @@
       }
 
       const bottomText = document.getElementById("typing-indicator-bottom-text");
-      if (typingUsers.length === 0) {
+      if (names.length === 0) {
         if (bottom && bottom.parentElement) bottom.parentElement.removeChild(bottom);
       } else {
-        const names = typingUsers
-          .slice(0, 3)
-          .map((e) => e.replace(/\*/g, "."))
-          .map((e) => (e.includes("@") ? e.split("@")[0] : e));
         const txt = names.length === 1 ? `${names[0]} is typing...` : `${names.join(", ")} are typing...`;
         if (bottomText) bottomText.textContent = txt;
         // ensure bottom is appended to messagesDiv
