@@ -1042,22 +1042,27 @@
         padding: 6px 8px;
         margin: 6px 0;
         border-radius: 6px;
+        /* hidden by default; script sets style.display = 'flex' when visible */
         display: none;
+        /* layout as a horizontal row when shown */
+        flex-direction: row;
         align-items: center;
         gap: 8px;
+        white-space: nowrap; /* keep dots and text on a single line */
       }
 
       .typing-dots {
-        display: inline-block;
-        width: 24px;
-        text-align: left;
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        width: auto;
+        min-width: 24px;
       }
 
       .typing-dots span {
         display: inline-block;
         width: 6px;
         height: 6px;
-        margin-right: 3px;
         background: ${isDark ? "#aaa" : "#666"};
         border-radius: 50%;
         opacity: 0.3;
