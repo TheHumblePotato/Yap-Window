@@ -1037,32 +1037,33 @@
 
       /* Typing indicator styles */
       .typing-indicator {
-        font-size: 12px;
+        font-size: 13px;
         color: ${isDark ? "#ccc" : "#444"};
         padding: 6px 8px;
         margin: 6px 0;
         border-radius: 6px;
         /* hidden by default; script sets style.display = 'flex' when visible */
         display: none;
-        /* layout as a horizontal row when shown */
+        /* allow stacking multiple lines inside the indicator when needed */
         flex-direction: row;
         align-items: center;
         gap: 8px;
-        white-space: nowrap; /* keep dots and text on a single line */
+        white-space: normal; /* allow multi-line content */
+        flex-wrap: wrap;
       }
 
       .typing-dots {
         display: flex;
         align-items: center;
-        gap: 3px;
+        gap: 6px;
         width: auto;
-        min-width: 24px;
+        min-width: 30px;
       }
 
       .typing-dots span {
         display: inline-block;
-        width: 6px;
-        height: 6px;
+        width: 8px;
+        height: 8px;
         background: ${isDark ? "#aaa" : "#666"};
         border-radius: 50%;
         opacity: 0.3;
@@ -1076,6 +1077,22 @@
         0% { opacity: 0.2; transform: translateY(0); }
         50% { opacity: 1; transform: translateY(-3px); }
         100% { opacity: 0.2; transform: translateY(0); }
+      }
+
+      /* Ensure per-line layout and spacing for multi-user typing indicators */
+      #typing-indicator-bottom-text > div,
+      #typing-above-input-text > div {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 6px 0;
+      }
+
+      #typing-indicator-bottom-text,
+      #typing-above-input-text {
+        display: flex;
+        flex-direction: column;
+        row-gap: 6px;
       }
 
       /* Voting System Styles */

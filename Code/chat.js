@@ -893,7 +893,7 @@
         }),
       );
 
-      // Update above-input indicator
+      // Update above-input indicator (each name gets its own line with animated dots)
       const above = document.getElementById("typing-above-input");
       const aboveText = document.getElementById("typing-above-input-text");
       if (above) {
@@ -904,14 +904,35 @@
           if (aboveText) {
             // clear previous content
             aboveText.innerHTML = "";
+            // ensure the container stacks lines vertically
+            aboveText.style.display = "flex";
+            aboveText.style.flexDirection = "column";
+            aboveText.style.rowGap = "6px";
+
+            const makeLine = (n) => {
+              const line = document.createElement("div");
+              line.style.display = "flex";
+              line.style.alignItems = "center";
+              line.style.columnGap = "8px";
+              line.style.margin = "2px 0";
+
+              const dots = document.createElement("div");
+              dots.className = "typing-dots";
+              dots.innerHTML = '<span></span><span></span><span></span>';
+
+              const txt = document.createElement("div");
+              txt.textContent = `${n} is typing...`;
+
+              line.appendChild(dots);
+              line.appendChild(txt);
+              return line;
+            };
+
             if (names.length === 1) {
-              aboveText.textContent = `${names[0]} is typing...`;
+              aboveText.appendChild(makeLine(names[0]));
             } else {
-              // put each typing user on its own line
               names.forEach((n) => {
-                const line = document.createElement("div");
-                line.textContent = `${n} is typing...`;
-                aboveText.appendChild(line);
+                aboveText.appendChild(makeLine(n));
               });
             }
           }
@@ -924,12 +945,12 @@
         bottom = document.createElement("div");
         bottom.id = "typing-indicator-bottom";
         bottom.className = "typing-indicator";
-        const dots = document.createElement("div");
-        dots.className = "typing-dots";
-        dots.innerHTML = '<span></span><span></span><span></span>';
         const text = document.createElement("div");
         text.id = "typing-indicator-bottom-text";
-        bottom.appendChild(dots);
+        // stack lines vertically
+        text.style.display = "flex";
+        text.style.flexDirection = "column";
+        text.style.rowGap = "6px";
         bottom.appendChild(text);
       }
 
@@ -939,13 +960,31 @@
       } else {
         if (bottomText) {
           bottomText.innerHTML = "";
+          // create per-line element with animated dots + text
+          const makeLine = (n) => {
+            const line = document.createElement("div");
+            line.style.display = "flex";
+            line.style.alignItems = "center";
+            line.style.columnGap = "8px";
+            line.style.margin = "2px 0";
+
+            const dots = document.createElement("div");
+            dots.className = "typing-dots";
+            dots.innerHTML = '<span></span><span></span><span></span>';
+
+            const txt = document.createElement("div");
+            txt.textContent = `${n} is typing...`;
+
+            line.appendChild(dots);
+            line.appendChild(txt);
+            return line;
+          };
+
           if (names.length === 1) {
-            bottomText.textContent = `${names[0]} is typing...`;
+            bottomText.appendChild(makeLine(names[0]));
           } else {
             names.forEach((n) => {
-              const line = document.createElement("div");
-              line.textContent = `${n} is typing...`;
-              bottomText.appendChild(line);
+              bottomText.appendChild(makeLine(n));
             });
           }
         }
