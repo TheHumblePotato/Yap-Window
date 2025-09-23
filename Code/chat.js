@@ -896,12 +896,26 @@
       // Update above-input indicator
       const above = document.getElementById("typing-above-input");
       const aboveText = document.getElementById("typing-above-input-text");
-      if (names.length === 0) {
-        if (above) above.style.display = "none";
-      } else {
-        const txt = names.length === 1 ? `${names[0]} is typing...` : `${names.join(", ")} are typing...`;
-        if (aboveText) aboveText.textContent = txt;
-        if (above) above.style.display = "flex";
+      if (above) {
+        if (names.length === 0) {
+          above.style.display = "none";
+        } else {
+          above.style.display = "flex";
+          if (aboveText) {
+            // clear previous content
+            aboveText.innerHTML = "";
+            if (names.length === 1) {
+              aboveText.textContent = `${names[0]} is typing...`;
+            } else {
+              // put each typing user on its own line
+              names.forEach((n) => {
+                const line = document.createElement("div");
+                line.textContent = `${n} is typing...`;
+                aboveText.appendChild(line);
+              });
+            }
+          }
+        }
       }
 
       // Update message-area indicator (below last message). We'll create a small element with id typing-indicator-bottom
@@ -923,8 +937,18 @@
       if (names.length === 0) {
         if (bottom && bottom.parentElement) bottom.parentElement.removeChild(bottom);
       } else {
-        const txt = names.length === 1 ? `${names[0]} is typing...` : `${names.join(", ")} are typing...`;
-        if (bottomText) bottomText.textContent = txt;
+        if (bottomText) {
+          bottomText.innerHTML = "";
+          if (names.length === 1) {
+            bottomText.textContent = `${names[0]} is typing...`;
+          } else {
+            names.forEach((n) => {
+              const line = document.createElement("div");
+              line.textContent = `${n} is typing...`;
+              bottomText.appendChild(line);
+            });
+          }
+        }
         // ensure bottom is appended to messagesDiv
         if (!messagesDiv.querySelector("#typing-indicator-bottom")) {
           messagesDiv.appendChild(bottom);
