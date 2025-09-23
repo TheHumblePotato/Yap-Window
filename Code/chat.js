@@ -869,6 +869,11 @@
     const messagesRef = ref(database, `Chats/${chatName}`);
     // Typing indicators: listen for typing presence in this chat
   const typingRef = ref(database, `Typing/${chatName}`);
+  // Persistent maps to store per-user line elements so we don't recreate them
+  // on every typing snapshot update. Keeping the dot elements stable prevents
+  // CSS animations from restarting.
+  const typingNodesAbove = new Map();
+  const typingNodesBottom = new Map();
     async function renderTypingIndicators(snapshot) {
       const data = snapshot.val() || {};
       const typingKeys = Object.keys(data).filter((k) => k !== email.replace(/\./g, "*"));
@@ -920,21 +925,17 @@
               aboveText.innerHTML = "";
             }
 
-            // Build a map of existing children by key
-            const existing = new Map();
-            Array.from(aboveText.children).forEach((c) => {
-              if (c.dataset && c.dataset.typingKey) existing.set(c.dataset.typingKey, c);
-            });
-
-            // Reconcile: for each entry, reuse element if present, else create it. Keep order.
+            // Use persistent map to avoid recreating elements
+            // Ensure container is prepared (don't clear it)
             for (const { key, name } of entries) {
-              let lineEl = existing.get(key);
-              if (lineEl) {
-                // update text only (do not touch dots) and DO NOT re-append the element,
-                // re-adding an existing node can restart its CSS animation.
-                const txt = lineEl.querySelector('.typing-text');
+              if (typingNodesAbove.has(key)) {
+                // update text only
+                const node = typingNodesAbove.get(key);
+                const txt = node.querySelector('.typing-text');
                 if (txt) txt.textContent = `${name} is typing...`;
-                existing.delete(key);
+                // make visible
+                node.style.visibility = 'visible';
+                node.style.opacity = '1';
               } else {
                 const line = document.createElement('div');
                 line.dataset.typingKey = key;
@@ -953,12 +954,22 @@
 
                 line.appendChild(dots);
                 line.appendChild(txt);
+                // append once and store in the persistent map
                 aboveText.appendChild(line);
+                typingNodesAbove.set(key, line);
               }
             }
 
-            // Remove any leftover elements that are no longer typing
-            for (const leftover of existing.values()) leftover.remove();
+            // Hide any nodes that are not currently typing (but keep them in DOM)
+            Array.from(typingNodesAbove.keys()).forEach((k) => {
+              if (!entries.find((e) => e.key === k)) {
+                const n = typingNodesAbove.get(k);
+                if (n) {
+                  n.style.visibility = 'hidden';
+                  n.style.opacity = '0';
+                }
+              }
+            });
           }
         }
       }
@@ -981,18 +992,14 @@
             bottomText.innerHTML = '';
           }
 
-          // map existing
-          const existingB = new Map();
-          Array.from(bottomText.children).forEach((c) => {
-            if (c.dataset && c.dataset.typingKey) existingB.set(c.dataset.typingKey, c);
-          });
-
+          // Use persistent bottom map to avoid recreation
           for (const { key, name } of entries) {
-            let el = existingB.get(key);
-            if (el) {
-              const txt = el.querySelector('.typing-text');
+            if (typingNodesBottom.has(key)) {
+              const node = typingNodesBottom.get(key);
+              const txt = node.querySelector('.typing-text');
               if (txt) txt.textContent = `${name} is typing...`;
-              existingB.delete(key);
+              node.style.visibility = 'visible';
+              node.style.opacity = '1';
             } else {
               const line = document.createElement('div');
               line.dataset.typingKey = key;
@@ -1012,11 +1019,20 @@
               line.appendChild(dots);
               line.appendChild(txt);
               bottomText.appendChild(line);
+              typingNodesBottom.set(key, line);
             }
           }
 
-          // remove leftovers
-          for (const leftover of existingB.values()) leftover.remove();
+          // hide leftover bottom nodes
+          Array.from(typingNodesBottom.keys()).forEach((k) => {
+            if (!entries.find((e) => e.key === k)) {
+              const n = typingNodesBottom.get(k);
+              if (n) {
+                n.style.visibility = 'hidden';
+                n.style.opacity = '0';
+              }
+            }
+          });
         }
         // ensure bottom is appended to messagesDiv
         if (!messagesDiv.querySelector("#typing-indicator-bottom")) {
