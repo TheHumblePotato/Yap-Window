@@ -902,6 +902,9 @@
         } else {
           above.style.display = "flex";
           if (aboveText) {
+            // remove any stray/static dots elements that might be present
+            const strayDots = above.querySelectorAll('.typing-dots');
+            strayDots.forEach((d) => d.remove());
             // clear previous content
             aboveText.innerHTML = "";
             // ensure the container stacks lines vertically
@@ -958,6 +961,12 @@
       if (names.length === 0) {
         if (bottom && bottom.parentElement) bottom.parentElement.removeChild(bottom);
       } else {
+        // remove stray dots left in bottom container
+        if (bottom) {
+          const strayBottomDots = bottom.querySelectorAll('.typing-dots');
+          strayBottomDots.forEach((d) => d.remove());
+        }
+
         if (bottomText) {
           bottomText.innerHTML = "";
           // create per-line element with animated dots + text

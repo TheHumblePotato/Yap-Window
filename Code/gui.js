@@ -1622,9 +1622,8 @@
             </div>
             <div id="messages-typing-container" style="width:100%; display:flex; flex-direction:column; align-items:flex-start;">
               <div id="typing-above-input" class="typing-indicator" aria-hidden="true">
-                <div class="typing-dots"><span></span><span></span><span></span></div>
-                <div id="typing-above-input-text">Someone is typing...</div>
-              </div>
+                  <div id="typing-above-input-text">Someone is typing...</div>
+                </div>
             </div>
             <div id="message-send">
           <input type="file" id="file-upload" style="display: none;" accept="image/*,video/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,.rar,.7z">
