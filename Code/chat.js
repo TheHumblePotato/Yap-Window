@@ -923,8 +923,8 @@
       if (names.length === 0) {
         if (bottom && bottom.parentElement) bottom.parentElement.removeChild(bottom);
       } else {
-        const txt = names.length === 1 ? `${names[0]} is typing...` : `${names.join("<br>")} are typing...`;
-        if (bottomText) bottomText.innerHTML = txt;
+        const txt = names.length === 1 ? `${names[0]} is typing...` : `${names.join(", ")} are typing...`;
+        if (bottomText) bottomText.textContent = txt;
         // ensure bottom is appended to messagesDiv
         if (!messagesDiv.querySelector("#typing-indicator-bottom")) {
           messagesDiv.appendChild(bottom);
