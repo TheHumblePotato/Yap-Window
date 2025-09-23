@@ -930,12 +930,11 @@
             for (const { key, name } of entries) {
               let lineEl = existing.get(key);
               if (lineEl) {
-                // update text only (do not touch dots)
+                // update text only (do not touch dots) and DO NOT re-append the element,
+                // re-adding an existing node can restart its CSS animation.
                 const txt = lineEl.querySelector('.typing-text');
                 if (txt) txt.textContent = `${name} is typing...`;
                 existing.delete(key);
-                // move to end to preserve display order (appendChild will move if already present)
-                aboveText.appendChild(lineEl);
               } else {
                 const line = document.createElement('div');
                 line.dataset.typingKey = key;
@@ -994,7 +993,6 @@
               const txt = el.querySelector('.typing-text');
               if (txt) txt.textContent = `${name} is typing...`;
               existingB.delete(key);
-              bottomText.appendChild(el);
             } else {
               const line = document.createElement('div');
               line.dataset.typingKey = key;
