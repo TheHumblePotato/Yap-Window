@@ -1418,6 +1418,21 @@
         transform: translateY(0);
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
       }
+      #profile-picture {
+        width: 100%;
+        padding: 10px;
+        margin-bottom: 15px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        box-sizing: border-box;
+      }
+
+      #email-create-section label[for="profile-picture"] {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+        color: #666;
+      }
     `;
   }
 
@@ -1465,23 +1480,25 @@
     </div>
     <div id="create-account-screen" class="screen hidden">
       <h2>Create Account</h2>
-      <div id="google-create-section" style="border:1px solid black">
+      <div id="google-create-section">
           <h3>Create Account with Google</h3>
           <button id="google-create-button">Sign Up with Google</button>
       </div>
-      <div id="email-create-section" style="border:1px solid black">
+      <div id="email-create-section">
           <h3>Create Account with Email</h3>
           <label for="create-email">Email</label>
           <input id="create-email" type="email" placeholder="Enter your email" required="">
-          <label for="create-email">Password</label>
+          <label for="create-password">Password</label>
           <input id="create-password" type="password" placeholder="Enter your password" required="">
+          <label for="profile-picture">Profile Picture (Optional)</label>
+          <input id="profile-picture" type="file" accept="image/*">
           <button id="submit-create-email">Create Account</button>
-          <label id="create-email-error" style="color: #f2545b"></label>
+          <label id="create-email-error"></label>
       </div>
       <div>
           <button id="back-create-button">Back</button>
       </div>
-      <hr style="margin: 20px 0">
+      <hr>
     </div>
     <div id="verification-screen" class="screen hidden">
       <h2>Email Verification</h2>
