@@ -665,6 +665,31 @@
         console.log('Left voice room');
     }
 
+    // Kick all participants out of a room
+    function kickAllParticipants(roomName, participants) {
+        if (!participants) {
+            return Promise.resolve();
+        }
+
+        console.log(`Kicking all participants out of room: ${roomName}`);
+        
+        // Create array of promises to remove each participant
+        const removePromises = Object.keys(participants).map(participantEmailMasked => {
+            const participantRef = ref(database, `VoiceRooms/${roomName}/participants/${participantEmailMasked}`);
+            console.log(`Removing participant: ${participantEmailMasked.replace(/\*/g, ".")}`);
+            return remove(participantRef).catch((error) => {
+                console.error(`Error removing participant ${participantEmailMasked}:`, error);
+                // Don't fail the entire operation if one participant removal fails
+                return null;
+            });
+        });
+
+        // Wait for all participants to be removed
+        return Promise.all(removePromises).then(() => {
+            console.log(`All participants have been removed from room: ${roomName}`);
+        });
+    }
+
     // Delete current room (owner only)
     function deleteCurrentRoom() {
         if (!currentVoiceRoom) return;
@@ -674,26 +699,38 @@
         get(roomRef).then((snapshot) => {
             const room = snapshot.val();
             if (room && room.owner === email.replace(/\./g, "*")) {
-                // Notify all participants about room deletion
-                notifyRoomDeletion(currentVoiceRoom);
-                // Remove room from database
-                return remove(roomRef);
+                // First, kick all participants out of the room
+                return kickAllParticipants(currentVoiceRoom, room.participants);
             } else {
                 showError('Only room owner can delete the room');
+                throw new Error('Not room owner');
             }
+        }).then(() => {
+            // Add a small delay to ensure all participants are removed
+            return new Promise(resolve => setTimeout(resolve, 500));
+        }).then(() => {
+            // Now delete the room from database
+            return remove(roomRef);
         }).then(() => {
             leaveVoiceRoom();
             loadAvailableRooms();
         }).catch((error) => {
-            console.error('Error deleting room:', error);
-            showError('Failed to delete room');
+            if (error.message !== 'Not room owner') {
+                console.error('Error deleting room:', error);
+                showError('Failed to delete room');
+            }
         });
     }
 
     // Notify participants about room deletion
     function notifyRoomDeletion(roomName) {
         console.log(`Room ${roomName} has been deleted by the owner`);
-        // Could implement actual notifications here
+        
+        // Show notification to all users that the room was deleted
+        // This provides better user feedback when the room is deleted
+        if (currentVoiceRoom === roomName) {
+            showError(`Room "${roomName}" has been deleted by the owner`);
+        }
     }
 
     // Show error message
