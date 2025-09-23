@@ -1035,6 +1035,44 @@
         padding: 4px 0;
       }
 
+      /* Typing indicator styles */
+      .typing-indicator {
+        font-size: 12px;
+        color: ${isDark ? "#ccc" : "#444"};
+        padding: 6px 8px;
+        margin: 6px 0;
+        border-radius: 6px;
+        display: none;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .typing-dots {
+        display: inline-block;
+        width: 24px;
+        text-align: left;
+      }
+
+      .typing-dots span {
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        margin-right: 3px;
+        background: ${isDark ? "#aaa" : "#666"};
+        border-radius: 50%;
+        opacity: 0.3;
+        animation: typing 1s infinite;
+      }
+
+      .typing-dots span:nth-child(2) { animation-delay: .15s }
+      .typing-dots span:nth-child(3) { animation-delay: .3s }
+
+      @keyframes typing {
+        0% { opacity: 0.2; transform: translateY(0); }
+        50% { opacity: 1; transform: translateY(-3px); }
+        100% { opacity: 0.2; transform: translateY(0); }
+      }
+
       /* Voting System Styles */
       #voting-screen, #leaderboard-screen {
         display: flex;
@@ -1559,6 +1597,12 @@
           </div>
           <div id="right-sidebar">
             <div id="messages">
+            </div>
+            <div id="messages-typing-container" style="width:100%; display:flex; flex-direction:column; align-items:flex-start;">
+              <div id="typing-above-input" class="typing-indicator" aria-hidden="true">
+                <div class="typing-dots"><span></span><span></span><span></span></div>
+                <div id="typing-above-input-text">Someone is typing...</div>
+              </div>
             </div>
             <div id="message-send">
           <input type="file" id="file-upload" style="display: none;" accept="image/*,video/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.zip,.rar,.7z">

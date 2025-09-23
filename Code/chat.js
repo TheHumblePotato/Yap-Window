@@ -435,6 +435,7 @@
 
   var currentChat = "General";
   let currentChatListener = null;
+  let currentChatTypingListener = null;
 
   async function populateSidebar(chatData) {
     if (Object.keys(readMessages).length === 0) {
@@ -772,6 +773,41 @@
       listElement.appendChild(userElement);
     });
   }
+  // Typing indicator helpers
+  let __typingTimeout = null;
+  const TYPING_TIMEOUT_MS = 2000;
+
+  async function sendTypingStart() {
+    try {
+      const key = email.replace(/\./g, "*");
+      const path = `Typing/${currentChat}`;
+      const typingRef = ref(database, `${path}/${key}`);
+      await set(typingRef, {
+        username: email.split("@")[0],
+        ts: Date.now(),
+      });
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  async function sendTypingStop() {
+    try {
+      const key = email.replace(/\./g, "*");
+      const path = `Typing/${currentChat}/${key}`;
+      const typingRef = ref(database, path);
+      await remove(typingRef);
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  function scheduleTypingStop() {
+    if (__typingTimeout) clearTimeout(__typingTimeout);
+    __typingTimeout = setTimeout(() => {
+      sendTypingStop();
+    }, TYPING_TIMEOUT_MS);
+  }
   async function getUsernameFromEmail(userEmail) {
     if (!userEmail) return "";
     if (
@@ -828,6 +864,61 @@
     }
 
     const messagesRef = ref(database, `Chats/${chatName}`);
+    // Typing indicators: listen for typing presence in this chat
+  const typingRef = ref(database, `Typing/${chatName}`);
+    function renderTypingIndicators(snapshot) {
+      const data = snapshot.val() || {};
+      const typingUsers = Object.keys(data).filter((k) => k !== email.replace(/\./g, "*"));
+      const messagesDiv = document.getElementById("messages");
+
+      // Update above-input indicator
+      const above = document.getElementById("typing-above-input");
+      const aboveText = document.getElementById("typing-above-input-text");
+      if (typingUsers.length === 0) {
+        if (above) above.style.display = "none";
+      } else {
+        const names = typingUsers
+          .slice(0, 3)
+          .map((e) => e.replace(/\*/g, "."))
+          .map((e) => (e.includes("@") ? e.split("@")[0] : e));
+        const txt = names.length === 1 ? `${names[0]} is typing...` : `${names.join(", ")} are typing...`;
+        if (aboveText) aboveText.textContent = txt;
+        if (above) above.style.display = "flex";
+      }
+
+      // Update message-area indicator (below last message). We'll create a small element with id typing-indicator-bottom
+      let bottom = document.getElementById("typing-indicator-bottom");
+      if (!bottom) {
+        bottom = document.createElement("div");
+        bottom.id = "typing-indicator-bottom";
+        bottom.className = "typing-indicator";
+        const dots = document.createElement("div");
+        dots.className = "typing-dots";
+        dots.innerHTML = '<span></span><span></span><span></span>';
+        const text = document.createElement("div");
+        text.id = "typing-indicator-bottom-text";
+        bottom.appendChild(dots);
+        bottom.appendChild(text);
+      }
+
+      const bottomText = document.getElementById("typing-indicator-bottom-text");
+      if (typingUsers.length === 0) {
+        if (bottom && bottom.parentElement) bottom.parentElement.removeChild(bottom);
+      } else {
+        const names = typingUsers
+          .slice(0, 3)
+          .map((e) => e.replace(/\*/g, "."))
+          .map((e) => (e.includes("@") ? e.split("@")[0] : e));
+        const txt = names.length === 1 ? `${names[0]} is typing...` : `${names.join(", ")} are typing...`;
+        if (bottomText) bottomText.textContent = txt;
+        // ensure bottom is appended to messagesDiv
+        if (!messagesDiv.querySelector("#typing-indicator-bottom")) {
+          messagesDiv.appendChild(bottom);
+          // scroll to bottom if user was near bottom
+          messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+      }
+    }
     const appendedMessages = new Set();
     let loadedMessages = [];
     let isLoadingMore = false;
@@ -971,6 +1062,10 @@
       }
 
       if (adjacentMessageDiv) {
+
+  // Clean up previous typing listener if present
+  if (currentChatTypingListener) currentChatTypingListener();
+  currentChatTypingListener = onValue(typingRef, renderTypingIndicators);
         const messageContent = document.createElement("p");
         messageContent.innerHTML = message.Message;
         messageContent.style.marginTop = "5px";
@@ -4996,7 +5091,10 @@
   });
 
   const sendButton = document.getElementById("send-button");
-  sendButton.addEventListener("click", sendMessage);
+  sendButton.addEventListener("click", async (e) => {
+    try { await sendTypingStop(); } catch (er) {}
+    sendMessage();
+  });
 
   const messageInput = document.getElementById("message-input");
 
@@ -5005,6 +5103,23 @@
       e.preventDefault();
       sendMessage();
     }
+  });
+
+  // Typing indicator hooks
+  messageInput.addEventListener("input", (e) => {
+    // Start typing presence
+    try { sendTypingStart(); } catch (er) {}
+    scheduleTypingStop();
+  });
+
+  messageInput.addEventListener("keydown", (e) => {
+    // Update typing timestamp on keydown as well
+    try { sendTypingStart(); } catch (er) {}
+    scheduleTypingStop();
+  });
+
+  messageInput.addEventListener("blur", (e) => {
+    try { sendTypingStop(); } catch (er) {}
   });
 
   document
