@@ -876,19 +876,21 @@
 
       // Resolve display names for typing users. Prefer the username field stored in the Typing entry;
       // if missing, fall back to a DB lookup which returns the account Username or the email local-part.
-      const names = await Promise.all(
+      // Resolve display names for typing users, but keep their keys so we can
+      // reuse existing DOM elements and avoid restarting the dot animation on every update.
+      const entries = await Promise.all(
         typingKeys.slice(0, 3).map(async (key) => {
           const entry = data[key] || {};
           if (entry.username && typeof entry.username === "string" && entry.username.trim() !== "") {
-            return entry.username;
+            return { key, name: entry.username };
           }
           // key is stored with '*' for dots; convert back to a normal email before lookup
           const candidateEmail = key.replace(/\*/g, ".");
           try {
             const resolved = await getUsernameFromEmail(candidateEmail);
-            return resolved || (candidateEmail.includes("@") ? candidateEmail.split("@")[0] : candidateEmail);
+            return { key, name: resolved || (candidateEmail.includes("@") ? candidateEmail.split("@")[0] : candidateEmail) };
           } catch (err) {
-            return candidateEmail.includes("@") ? candidateEmail.split("@")[0] : candidateEmail;
+            return { key, name: candidateEmail.includes("@") ? candidateEmail.split("@")[0] : candidateEmail };
           }
         }),
       );
@@ -897,105 +899,123 @@
       const above = document.getElementById("typing-above-input");
       const aboveText = document.getElementById("typing-above-input-text");
       if (above) {
-        if (names.length === 0) {
+        if (entries.length === 0) {
           above.style.display = "none";
         } else {
           above.style.display = "flex";
           if (aboveText) {
-            // remove any stray/static dots elements that might be present
-            const strayDots = above.querySelectorAll('.typing-dots');
+            // remove stray static dots if any
+            const strayDots = above.querySelectorAll('.typing-dots:not([data-typing-key])');
             strayDots.forEach((d) => d.remove());
-            // clear previous content
-            aboveText.innerHTML = "";
-            // ensure the container stacks lines vertically
+
+            // Ensure container is columnar
             aboveText.style.display = "flex";
             aboveText.style.flexDirection = "column";
             aboveText.style.rowGap = "6px";
 
-            const makeLine = (n) => {
-              const line = document.createElement("div");
-              line.style.display = "flex";
-              line.style.alignItems = "center";
-              line.style.columnGap = "8px";
-              line.style.margin = "2px 0";
-
-              const dots = document.createElement("div");
-              dots.className = "typing-dots";
-              dots.innerHTML = '<span></span><span></span><span></span>';
-
-              const txt = document.createElement("div");
-              txt.textContent = `${n} is typing...`;
-
-              line.appendChild(dots);
-              line.appendChild(txt);
-              return line;
-            };
-
-            if (names.length === 1) {
-              aboveText.appendChild(makeLine(names[0]));
-            } else {
-              names.forEach((n) => {
-                aboveText.appendChild(makeLine(n));
-              });
+            // If aboveText currently only contains the default text node, clear it once
+            if (aboveText.children.length === 0 && aboveText.textContent.trim()) {
+              aboveText.innerHTML = "";
             }
+
+            // Build a map of existing children by key
+            const existing = new Map();
+            Array.from(aboveText.children).forEach((c) => {
+              if (c.dataset && c.dataset.typingKey) existing.set(c.dataset.typingKey, c);
+            });
+
+            // Reconcile: for each entry, reuse element if present, else create it. Keep order.
+            for (const { key, name } of entries) {
+              let lineEl = existing.get(key);
+              if (lineEl) {
+                // update text only (do not touch dots)
+                const txt = lineEl.querySelector('.typing-text');
+                if (txt) txt.textContent = `${name} is typing...`;
+                existing.delete(key);
+                // move to end to preserve display order (appendChild will move if already present)
+                aboveText.appendChild(lineEl);
+              } else {
+                const line = document.createElement('div');
+                line.dataset.typingKey = key;
+                line.style.display = 'flex';
+                line.style.alignItems = 'center';
+                line.style.columnGap = '8px';
+                line.style.margin = '2px 0';
+
+                const dots = document.createElement('div');
+                dots.className = 'typing-dots';
+                dots.innerHTML = '<span></span><span></span><span></span>';
+
+                const txt = document.createElement('div');
+                txt.className = 'typing-text';
+                txt.textContent = `${name} is typing...`;
+
+                line.appendChild(dots);
+                line.appendChild(txt);
+                aboveText.appendChild(line);
+              }
+            }
+
+            // Remove any leftover elements that are no longer typing
+            for (const leftover of existing.values()) leftover.remove();
           }
         }
       }
 
       // Update message-area indicator (below last message). We'll create a small element with id typing-indicator-bottom
-      let bottom = document.getElementById("typing-indicator-bottom");
-      if (!bottom) {
-        bottom = document.createElement("div");
-        bottom.id = "typing-indicator-bottom";
-        bottom.className = "typing-indicator";
-        const text = document.createElement("div");
-        text.id = "typing-indicator-bottom-text";
-        // stack lines vertically
-        text.style.display = "flex";
-        text.style.flexDirection = "column";
-        text.style.rowGap = "6px";
-        bottom.appendChild(text);
-      }
-
       const bottomText = document.getElementById("typing-indicator-bottom-text");
-      if (names.length === 0) {
+      if (entries.length === 0) {
         if (bottom && bottom.parentElement) bottom.parentElement.removeChild(bottom);
       } else {
-        // remove stray dots left in bottom container
+        // ensure no stray static dots (only remove un-keyed ones)
         if (bottom) {
-          const strayBottomDots = bottom.querySelectorAll('.typing-dots');
+          const strayBottomDots = bottom.querySelectorAll('.typing-dots:not([data-typing-key])');
           strayBottomDots.forEach((d) => d.remove());
         }
 
         if (bottomText) {
-          bottomText.innerHTML = "";
-          // create per-line element with animated dots + text
-          const makeLine = (n) => {
-            const line = document.createElement("div");
-            line.style.display = "flex";
-            line.style.alignItems = "center";
-            line.style.columnGap = "8px";
-            line.style.margin = "2px 0";
-
-            const dots = document.createElement("div");
-            dots.className = "typing-dots";
-            dots.innerHTML = '<span></span><span></span><span></span>';
-
-            const txt = document.createElement("div");
-            txt.textContent = `${n} is typing...`;
-
-            line.appendChild(dots);
-            line.appendChild(txt);
-            return line;
-          };
-
-          if (names.length === 1) {
-            bottomText.appendChild(makeLine(names[0]));
-          } else {
-            names.forEach((n) => {
-              bottomText.appendChild(makeLine(n));
-            });
+          // If bottomText currently only contains default text, clear once
+          if (bottomText.children.length === 0 && bottomText.textContent.trim()) {
+            bottomText.innerHTML = '';
           }
+
+          // map existing
+          const existingB = new Map();
+          Array.from(bottomText.children).forEach((c) => {
+            if (c.dataset && c.dataset.typingKey) existingB.set(c.dataset.typingKey, c);
+          });
+
+          for (const { key, name } of entries) {
+            let el = existingB.get(key);
+            if (el) {
+              const txt = el.querySelector('.typing-text');
+              if (txt) txt.textContent = `${name} is typing...`;
+              existingB.delete(key);
+              bottomText.appendChild(el);
+            } else {
+              const line = document.createElement('div');
+              line.dataset.typingKey = key;
+              line.style.display = 'flex';
+              line.style.alignItems = 'center';
+              line.style.columnGap = '8px';
+              line.style.margin = '2px 0';
+
+              const dots = document.createElement('div');
+              dots.className = 'typing-dots';
+              dots.innerHTML = '<span></span><span></span><span></span>';
+
+              const txt = document.createElement('div');
+              txt.className = 'typing-text';
+              txt.textContent = `${name} is typing...`;
+
+              line.appendChild(dots);
+              line.appendChild(txt);
+              bottomText.appendChild(line);
+            }
+          }
+
+          // remove leftovers
+          for (const leftover of existingB.values()) leftover.remove();
         }
         // ensure bottom is appended to messagesDiv
         if (!messagesDiv.querySelector("#typing-indicator-bottom")) {
