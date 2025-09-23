@@ -899,8 +899,8 @@
       if (names.length === 0) {
         if (above) above.style.display = "none";
       } else {
-        const txt = names.length === 1 ? `${names[0]} is typing...` : `${names.join(", ")} are typing...`;
-        if (aboveText) aboveText.textContent = txt;
+        const txt = names.length === 1 ? `${names[0]} is typing...` : `${names.join("<br>")} are typing...`;
+        if (aboveText) aboveText.innerHTML = txt;
         if (above) above.style.display = "flex";
       }
 
