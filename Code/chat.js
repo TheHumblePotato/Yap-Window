@@ -535,20 +535,28 @@
     });
 
     updateReadAllStatus();
+    
+    // Populate DM list separately
+    populateDMList();
+  }
 
-    // Populate DM list
+  function populateDMList() {
     try {
       const dmList = document.getElementById("dm-list");
-      if (dmList) {
-        dmList.innerHTML = "";
+      if (!dmList) {
+        console.log("DM list element not found");
+        return;
       }
 
       const myKey = email.replace(/\./g, "*");
+      console.log("Populating DM list for user:", myKey);
       const dmsRef = ref(database, `dms`);
       onValue(dmsRef, (snapshot) => {
         const all = snapshot.val() || {};
+        console.log("All DMs:", all);
         const entries = Object.keys(all).filter((pair) => pair.includes(myKey));
-        if (dmList) dmList.innerHTML = "";
+        console.log("User's DM entries:", entries);
+        dmList.innerHTML = "";
         entries.forEach((pairKey) => {
           const dmEl = document.createElement("div");
           dmEl.className = "dm";
@@ -563,17 +571,18 @@
           });
           
           dmEl.onclick = function () {
+            console.log("Opening DM:", pairKey);
             // Deselect all channels and DMs
             document.querySelectorAll(".server").forEach((s) => s.classList.remove("selected"));
             document.querySelectorAll(".dm").forEach((d) => d.classList.remove("selected"));
             this.classList.add("selected");
             openDM(pairKey);
           };
-          dmList && dmList.appendChild(dmEl);
+          dmList.appendChild(dmEl);
         });
       });
     } catch (e) {
-      // ignore DM list errors
+      console.error("Error populating DM list:", e);
     }
   }
 
@@ -613,12 +622,14 @@
     let available = commonEmails.map(email => ({ id: email.replace(/\./g, "*"), email }));
 
     function render(items) {
+      console.log("Rendering member options:", items);
       list.innerHTML = "";
       items.forEach((m) => {
         const opt = document.createElement("div");
         opt.className = "member-option";
         opt.textContent = m.email;
         opt.onclick = () => {
+          console.log("Selected member:", m.email);
           // Only single recipient for DM
           selected.innerHTML = "";
           const tag = document.createElement("div");
@@ -672,6 +683,7 @@
         
         document.getElementById("dm-screen").classList.add("hidden");
         chatScreen.style.display = "flex";
+        populateDMList(); // Refresh DM list
         openDM(pairKey);
       } catch (error) {
         console.error("Error creating DM:", error);
@@ -710,12 +722,17 @@
     currentDMListener = onValue(dmRef, async (snapshot) => {
       if (!isDMActive() || currentDMKey !== pairKey) return;
       const data = snapshot.val() || {};
-      const entries = Object.entries(data).filter(([k])=>k!=="__meta__").sort(([a],[b])=>a.localeCompare(b));
-      const appended = new Set();
+      const entries = Object.entries(data).filter(([k])=>k!=="__meta__");
+      
+      // Sort by timestamp, not by ID string
+      entries.sort(([a, msgA], [b, msgB]) => {
+        const timeA = msgA.Date ? new Date(msgA.Date).getTime() : 0;
+        const timeB = msgB.Date ? new Date(msgB.Date).getTime() : 0;
+        return timeA - timeB;
+      });
+      
       messagesDiv.innerHTML = "";
       for (const [id, msg] of entries) {
-        if (appended.has(id)) continue;
-        
         const div = document.createElement("div");
         div.className = "message " + (msg.User === email ? "sent" : "received");
         div.setAttribute("data-message-id", id);
@@ -739,7 +756,6 @@
         div.appendChild(headerInfo);
         div.appendChild(messageContent);
         messagesDiv.appendChild(div);
-        appended.add(id);
       }
       messagesDiv.scrollTop = 2000000;
     });
@@ -7274,6 +7290,7 @@
   checkForUpdates();
   setupGlobalFileViewer();
   fetchChatList();
+  populateDMList(); // Initialize DM list
   setupUnreadCountUpdates();
   await initializeReadMessages();
   loadMessages("General");
