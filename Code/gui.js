@@ -1724,6 +1724,17 @@
       <button id="delete-channel" style="display: none">Delete</button>
       <button id="back-channel">Back</button>
     </div>
+    <div id="dm-screen" class="screen hidden">
+      <h2 id="dm-screen-title">Create Direct Message</h2>
+      <label>Select Recipient</label>
+      <div id="dm-selected-members" class="selected-members-container"></div>
+      <div class="members-dropdown">
+        <input type="text" id="dm-member-search" placeholder="Type Emails Here...">
+        <div id="dm-members-list" class="members-list"></div>
+      </div>
+      <button id="submit-dm">Start DM</button>
+      <button id="back-dm">Back</button>
+    </div>
     <div id="voting-screen" class="screen hidden">
       <div id="voting-header">
         <h2>Bot Approval Voting</h2>
