@@ -6522,6 +6522,7 @@
     const selectedMembers = document.getElementById("selected-members");
     const membersList = document.getElementById("members-list");
     const deleteButton = document.getElementById("delete-channel");
+    const clearButton = document.getElementById("clear-channel");
     const memberSearch = document.getElementById("member-search");
     channelType.value = "Public";
     membersContainer.style.display = "none";
@@ -6532,6 +6533,7 @@
       channelDescription.value = "";
     }
     deleteButton.style.display = "none";
+    if (clearButton) clearButton.style.display = "none";
     channelName.disabled = false;
     previousChannelType = "Public";
     originalMembers = "";
@@ -6553,6 +6555,7 @@
     const selectedMembers = document.getElementById("selected-members");
     const membersList = document.getElementById("members-list");
     const deleteButton = document.getElementById("delete-channel");
+    let clearButton = document.getElementById("clear-channel");
     const memberSearch = document.getElementById("member-search");
     const title = document.getElementById("channel-screen-title");
     title.textContent = `${isModifying ? "Customize Channel" : "Create Channel"}`;
@@ -6579,6 +6582,24 @@
         channelName.value = existingChannelName;
         channelName.disabled = true;
         deleteButton.style.display = "block";
+
+        // Ensure CLEAR CHANNEL button exists next to delete and is owner-only
+        if (!clearButton) {
+          clearButton = document.createElement("button");
+          clearButton.id = "clear-channel";
+          clearButton.textContent = "CLEAR CHANNEL";
+          // Try to match existing styling by reusing delete button's classes if present
+          clearButton.className = deleteButton.className || "";
+          // Insert before delete button to appear in the settings/options bar
+          if (deleteButton.parentElement) {
+            deleteButton.parentElement.insertBefore(clearButton, deleteButton);
+          } else {
+            // Fallback: append after delete button
+            deleteButton.after(clearButton);
+          }
+        }
+        clearButton.style.display = "block";
+        clearButton.onclick = clearChannelHandler;
 
         channelDescription.value = channelData.Description;
         channelType.value = channelData.Type;
@@ -6749,6 +6770,7 @@
 
     submitButton.onclick = createChannelHandler;
     deleteButton.onclick = deleteChannelHandler;
+    if (clearButton) clearButton.onclick = clearChannelHandler;
 
     backButton.addEventListener("click", async function () {
       resetForm();
@@ -6896,6 +6918,50 @@
           console.error("Error initiating delete:", error);
           alert("Error deleting channel. Please try again.");
         }
+      }
+    }
+  }
+
+  function clearChannelHandler() {
+    const { isModifying } = pendingFormOptions;
+    const channelNameInput = document.getElementById("channel-name");
+    const channelNameToClear = channelNameInput.value.trim();
+    if (!isModifying || !channelNameToClear) return;
+
+    if (
+      confirm(
+        `This will delete all messages and attachments in "${channelNameToClear}" but keep its settings. Continue?`,
+      )
+    ) {
+      try {
+        // Verify ownership before clearing
+        const chatInfoRef = ref(database, `Chat Info/${channelNameToClear}`);
+        get(chatInfoRef)
+          .then((snapshot) => {
+            if (!snapshot.exists()) {
+              throw new Error("Channel settings not found.");
+            }
+            const channelData = snapshot.val();
+            const currentUserEmail = email.replace(/\./g, "*");
+            if (channelData.Creator !== currentUserEmail) {
+              throw new Error("You do not have permission to clear this channel.");
+            }
+            const messagesRef = ref(database, `Chats/${channelNameToClear}`);
+            return remove(messagesRef);
+          })
+          .then(() => {
+            alert(`Channel "${channelNameToClear}" has been cleared.`);
+            // Keep user on the same channel and reload empty messages
+            currentChat = channelNameToClear;
+            loadMessages(channelNameToClear);
+          })
+          .catch((error) => {
+            console.error("Error clearing channel:", error);
+            alert(error.message || "Error clearing channel. Please try again.");
+          });
+      } catch (error) {
+        console.error("Error initiating clear:", error);
+        alert("Error clearing channel. Please try again.");
       }
     }
   }
