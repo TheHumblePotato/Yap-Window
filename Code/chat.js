@@ -590,89 +590,49 @@
   })();
 
   function initDMMemberSelector() {
-    const selected = document.getElementById("dm-selected-members");
-    const list = document.getElementById("dm-members-list");
     const search = document.getElementById("dm-member-search");
     const backBtn = document.getElementById("back-dm");
     const submitBtn = document.getElementById("submit-dm");
 
-    selected.innerHTML = "";
-    list.innerHTML = "";
     search.value = "";
-
-    let available = [];
-    const currentUserEmail = email.replace(/\./g, "*");
-
-    function render(items) {
-      list.innerHTML = "";
-      items.forEach((m) => {
-        const opt = document.createElement("div");
-        opt.className = "member-option";
-        opt.textContent = m.email;
-        opt.onclick = () => {
-          // Only single recipient for DM
-          selected.innerHTML = "";
-          const tag = document.createElement("div");
-          tag.className = "selected-member";
-          tag.innerHTML = `${m.email}<span class="remove-member">×</span>`;
-          tag.querySelector(".remove-member").onclick = () => {
-            tag.remove();
-          };
-          selected.appendChild(tag);
-          list.style.display = "none";
-          search.value = m.email;
-        };
-        list.appendChild(opt);
-      });
-    }
-
-    async function loadAccounts() {
-      const accountsSnap = await get(ref(database, "Accounts"));
-      const accounts = accountsSnap.val() || {};
-      available = Object.keys(accounts)
-        .filter((k) => k !== currentUserEmail)
-        .map((k) => ({ id: k, email: k.replace(/\*/g, ".") }))
-        .sort((a, b) => a.email.localeCompare(b.email));
-      render(available);
-    }
-
-    loadAccounts();
-    list.style.display = "none";
-    search.onfocus = () => (list.style.display = "block");
-    document.addEventListener("click", (e) => {
-      if (!list.parentElement.contains(e.target)) list.style.display = "none";
-    });
-    search.oninput = (e) => {
-      const term = e.target.value.toLowerCase();
-      render(available.filter((m) => m.email.toLowerCase().includes(term)));
-      list.style.display = "block";
-    };
-
+    
     backBtn.onclick = () => {
       document.getElementById("dm-screen").classList.add("hidden");
       chatScreen.style.display = "flex";
     };
 
     submitBtn.onclick = async () => {
-      const chosen = selected.querySelector(".selected-member");
-      if (!chosen) {
-        alert("Please pick a recipient");
+      const emailInput = search.value.trim();
+      if (!emailInput) {
+        alert("Please enter a recipient email address");
         return;
       }
-      const to = chosen.textContent.replace(/×$/, "").trim();
-      const pairKey = buildPairKey(email, to);
+      
+      // Basic email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(emailInput)) {
+        alert("Please enter a valid email address");
+        return;
+      }
+      
+      const pairKey = buildPairKey(email, emailInput);
       const threadRef = ref(database, `dms/${pairKey}`);
       
-      // Create the DM thread with participants map
-      const meKey = email.replace(/\./g, "*");
-      const youKey = to.replace(/\./g, "*");
-      await set(threadRef, {
-        __meta__: { createdAt: Date.now(), participants: { [meKey]: true, [youKey]: true } }
-      });
-      
-      document.getElementById("dm-screen").classList.add("hidden");
-      chatScreen.style.display = "flex";
-      openDM(pairKey);
+      try {
+        // Create the DM thread with participants map
+        const meKey = email.replace(/\./g, "*");
+        const youKey = emailInput.replace(/\./g, "*");
+        await set(threadRef, {
+          __meta__: { createdAt: Date.now(), participants: { [meKey]: true, [youKey]: true } }
+        });
+        
+        document.getElementById("dm-screen").classList.add("hidden");
+        chatScreen.style.display = "flex";
+        openDM(pairKey);
+      } catch (error) {
+        console.error("Error creating DM:", error);
+        alert("Error creating DM. Please check your Firebase rules and try again.");
+      }
     };
   }
 
