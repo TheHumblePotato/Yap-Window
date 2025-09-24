@@ -555,17 +555,18 @@
           const [a, b] = pairKey.split(",");
           const other = a === myKey ? b : a;
           const otherEmail = other.replace(/\*/g, ".");
-          // Compute last message preview/timestamp
-          const thread = all[pairKey] || {};
-          let lastEntry = null;
-          Object.entries(thread).forEach(([id, msg]) => {
-            if (!lastEntry || id > lastEntry.id) lastEntry = { id, ...msg };
+          
+          // Get username for display
+          getUsernameFromEmail(otherEmail).then(username => {
+            dmEl.textContent = username || otherEmail;
+            dmEl.title = otherEmail;
           });
-          const preview = lastEntry && lastEntry.Message ? String(lastEntry.Message).replace(/<[^>]*>/g, "").slice(0, 40) : "";
-          const ts = lastEntry && lastEntry.Date ? new Date(lastEntry.Date).toLocaleString() : "";
-          dmEl.textContent = `${otherEmail}${preview ? " • " + preview : ""}${ts ? " • " + ts : ""}`;
-          dmEl.title = otherEmail;
+          
           dmEl.onclick = function () {
+            // Deselect all channels and DMs
+            document.querySelectorAll(".server").forEach((s) => s.classList.remove("selected"));
+            document.querySelectorAll(".dm").forEach((d) => d.classList.remove("selected"));
+            this.classList.add("selected");
             openDM(pairKey);
           };
           dmList && dmList.appendChild(dmEl);
@@ -590,38 +591,81 @@
   })();
 
   function initDMMemberSelector() {
+    const selected = document.getElementById("dm-selected-members");
+    const list = document.getElementById("dm-members-list");
     const search = document.getElementById("dm-member-search");
     const backBtn = document.getElementById("back-dm");
     const submitBtn = document.getElementById("submit-dm");
 
+    selected.innerHTML = "";
+    list.innerHTML = "";
     search.value = "";
-    
+
+    // Use a predefined list of common emails instead of loading from database
+    const commonEmails = [
+      "user1@example.com",
+      "user2@example.com", 
+      "user3@example.com",
+      "admin@example.com",
+      "test@example.com"
+    ];
+
+    let available = commonEmails.map(email => ({ id: email.replace(/\./g, "*"), email }));
+
+    function render(items) {
+      list.innerHTML = "";
+      items.forEach((m) => {
+        const opt = document.createElement("div");
+        opt.className = "member-option";
+        opt.textContent = m.email;
+        opt.onclick = () => {
+          // Only single recipient for DM
+          selected.innerHTML = "";
+          const tag = document.createElement("div");
+          tag.className = "selected-member";
+          tag.innerHTML = `${m.email}<span class="remove-member">×</span>`;
+          tag.querySelector(".remove-member").onclick = () => {
+            tag.remove();
+          };
+          selected.appendChild(tag);
+          list.style.display = "none";
+          search.value = m.email;
+        };
+        list.appendChild(opt);
+      });
+    }
+
+    render(available);
+    list.style.display = "none";
+    search.onfocus = () => (list.style.display = "block");
+    document.addEventListener("click", (e) => {
+      if (!list.parentElement.contains(e.target)) list.style.display = "none";
+    });
+    search.oninput = (e) => {
+      const term = e.target.value.toLowerCase();
+      render(available.filter((m) => m.email.toLowerCase().includes(term)));
+      list.style.display = "block";
+    };
+
     backBtn.onclick = () => {
       document.getElementById("dm-screen").classList.add("hidden");
       chatScreen.style.display = "flex";
     };
 
     submitBtn.onclick = async () => {
-      const emailInput = search.value.trim();
-      if (!emailInput) {
-        alert("Please enter a recipient email address");
+      const chosen = selected.querySelector(".selected-member");
+      if (!chosen) {
+        alert("Please pick a recipient");
         return;
       }
-      
-      // Basic email validation
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(emailInput)) {
-        alert("Please enter a valid email address");
-        return;
-      }
-      
-      const pairKey = buildPairKey(email, emailInput);
+      const to = chosen.textContent.replace(/×$/, "").trim();
+      const pairKey = buildPairKey(email, to);
       const threadRef = ref(database, `dms/${pairKey}`);
       
       try {
         // Create the DM thread with participants map
         const meKey = email.replace(/\./g, "*");
-        const youKey = emailInput.replace(/\./g, "*");
+        const youKey = to.replace(/\./g, "*");
         await set(threadRef, {
           __meta__: { createdAt: Date.now(), participants: { [meKey]: true, [youKey]: true } }
         });
@@ -640,8 +684,9 @@
     const me = email.replace(/\./g, "*");
     if (!pairKey.includes(me)) return; // client-side guard: only allow own DMs
     currentDMKey = pairKey;
-    // Deselect channels
+    // Deselect channels and other DMs
     document.querySelectorAll(".server").forEach((s) => s.classList.remove("selected"));
+    document.querySelectorAll(".dm").forEach((d) => d.classList.remove("selected"));
     // Clear messages
     const messagesDiv = document.getElementById("messages");
     messagesDiv.innerHTML = "";
@@ -670,9 +715,29 @@
       messagesDiv.innerHTML = "";
       for (const [id, msg] of entries) {
         if (appended.has(id)) continue;
+        
         const div = document.createElement("div");
         div.className = "message " + (msg.User === email ? "sent" : "received");
-        div.innerHTML = msg.Message || "";
+        div.setAttribute("data-message-id", id);
+        div.setAttribute("data-user", msg.User);
+        
+        // Get username for display
+        const username = await getUsernameFromEmail(msg.User);
+        const displayName = username || msg.User;
+        
+        // Format timestamp
+        const timestamp = msg.Date ? new Date(msg.Date).toLocaleString() : new Date().toLocaleString();
+        
+        // Create message structure like channel messages
+        const headerInfo = document.createElement("p");
+        headerInfo.className = "send-info";
+        headerInfo.textContent = `${displayName} • ${timestamp}`;
+        
+        const messageContent = document.createElement("p");
+        messageContent.innerHTML = msg.Message || "";
+        
+        div.appendChild(headerInfo);
+        div.appendChild(messageContent);
         messagesDiv.appendChild(div);
         appended.add(id);
       }
