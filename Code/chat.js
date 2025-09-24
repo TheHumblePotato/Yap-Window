@@ -610,51 +610,98 @@
     list.innerHTML = "";
     search.value = "";
 
-    // Use a predefined list of common emails instead of loading from database
-    const commonEmails = [
-      "user1@example.com",
-      "user2@example.com", 
-      "user3@example.com",
-      "admin@example.com",
-      "test@example.com"
-    ];
+    let availableMembers = [];
 
-    let available = commonEmails.map(email => ({ id: email.replace(/\./g, "*"), email }));
+    async function updateAvailableMembers() {
+      try {
+        const accountsRef = ref(database, "Accounts");
+        const snapshot = await get(accountsRef);
+        const accounts = snapshot.val();
 
-    function render(items) {
-      console.log("Rendering member options:", items);
+        const selectedEmails = new Set(
+          Array.from(document.querySelectorAll("#dm-selected-members .selected-member"))
+            .map((el) => el.textContent.trim().replace(/×$/, ""))
+            .map((email) => email.replace(/\./g, "*")),
+        );
+
+        availableMembers = Object.keys(accounts)
+          .filter(
+            (accountEmail) =>
+              accountEmail !== email.replace(/\./g, "*") &&
+              !selectedEmails.has(accountEmail),
+          )
+          .map((accountEmail) => ({
+            id: accountEmail,
+            email: accountEmail.replace(/\*/g, "."),
+          }));
+
+        renderMembersList(availableMembers);
+      } catch (error) {
+        console.error("Error loading members:", error);
+        // Fallback to empty list if database access fails
+        availableMembers = [];
+        renderMembersList(availableMembers);
+      }
+    }
+
+    function renderMembersList(members) {
       list.innerHTML = "";
-      items.forEach((m) => {
-        const opt = document.createElement("div");
-        opt.className = "member-option";
-        opt.textContent = m.email;
-        opt.onclick = () => {
-          console.log("Selected member:", m.email);
-          // Only single recipient for DM
-          selected.innerHTML = "";
-          const tag = document.createElement("div");
-          tag.className = "selected-member";
-          tag.innerHTML = `${m.email}<span class="remove-member">×</span>`;
-          tag.querySelector(".remove-member").onclick = () => {
-            tag.remove();
-          };
-          selected.appendChild(tag);
-          list.style.display = "none";
-          search.value = m.email;
-        };
-        list.appendChild(opt);
+      members.forEach((member) => {
+        const option = document.createElement("div");
+        option.className = "member-option";
+        option.textContent = member.email;
+        option.onclick = () => addMember(member);
+        list.appendChild(option);
       });
     }
 
-    render(available);
-    list.style.display = "none";
-    search.onfocus = () => (list.style.display = "block");
+    function addMember(member) {
+      // Clear any existing selection (DM is 1-on-1)
+      selected.innerHTML = "";
+      
+      const memberElement = document.createElement("div");
+      memberElement.className = "selected-member";
+      memberElement.innerHTML = `
+        ${member.email}
+        <span class="remove-member">×</span>
+      `;
+
+      memberElement.querySelector(".remove-member").onclick = () => {
+        memberElement.remove();
+        availableMembers.push(member);
+        availableMembers.sort((a, b) => a.email.localeCompare(b.email));
+        renderMembersList(availableMembers);
+      };
+
+      selected.appendChild(memberElement);
+
+      availableMembers = availableMembers.filter(
+        (availableMember) => availableMember.id !== member.id,
+      );
+      renderMembersList(availableMembers);
+
+      list.style.display = "none";
+      search.value = "";
+    }
+
+    updateAvailableMembers();
+
+    search.onfocus = () => {
+      list.style.display = "block";
+    };
+
     document.addEventListener("click", (e) => {
-      if (!list.parentElement.contains(e.target)) list.style.display = "none";
+      if (!list.parentElement.contains(e.target)) {
+        list.style.display = "none";
+      }
     });
+
     search.oninput = (e) => {
-      const term = e.target.value.toLowerCase();
-      render(available.filter((m) => m.email.toLowerCase().includes(term)));
+      const searchTerm = e.target.value.toLowerCase();
+      const filteredMembers = availableMembers.filter((member) =>
+        member.email.toLowerCase().includes(searchTerm),
+      );
+      renderMembersList(filteredMembers);
       list.style.display = "block";
     };
 
