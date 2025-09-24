@@ -662,14 +662,14 @@
       const to = chosen.textContent.replace(/×$/, "").trim();
       const pairKey = buildPairKey(email, to);
       const threadRef = ref(database, `dms/${pairKey}`);
-      const snap = await get(threadRef);
-      if (!snap.exists()) {
-        const meKey = email.replace(/\./g, "*");
-        const youKey = to.replace(/\./g, "*");
-        await set(threadRef, {
-          __meta__: { createdAt: Date.now(), participants: { [meKey]: true, [youKey]: true } }
-        });
-      }
+      
+      // Create the DM thread with participants map
+      const meKey = email.replace(/\./g, "*");
+      const youKey = to.replace(/\./g, "*");
+      await set(threadRef, {
+        __meta__: { createdAt: Date.now(), participants: { [meKey]: true, [youKey]: true } }
+      });
+      
       document.getElementById("dm-screen").classList.add("hidden");
       chatScreen.style.display = "flex";
       openDM(pairKey);
