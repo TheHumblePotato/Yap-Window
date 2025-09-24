@@ -1418,21 +1418,6 @@
         transform: translateY(0);
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
       }
-      #profile-picture {
-        width: 100%;
-        padding: 10px;
-        margin-bottom: 15px;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        box-sizing: border-box;
-      }
-
-      #email-create-section label[for="profile-picture"] {
-        display: block;
-        margin-bottom: 5px;
-        font-weight: bold;
-        color: #666;
-      }
     `;
   }
 
@@ -1490,8 +1475,6 @@
           <input id="create-email" type="email" placeholder="Enter your email" required="">
           <label for="create-password">Password</label>
           <input id="create-password" type="password" placeholder="Enter your password" required="">
-          <label for="profile-picture">Profile Picture (Optional)</label>
-          <input id="profile-picture" type="file" accept="image/*">
           <button id="submit-create-email">Create Account</button>
           <label id="create-email-error"></label>
       </div>
