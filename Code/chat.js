@@ -436,6 +436,23 @@
   var currentChat = "General";
   let currentChatListener = null;
   let currentChatTypingListener = null;
+  // DM context state
+  let currentDMKey = null; // null means channel mode; otherwise `/dms/{pairKey}`
+  let currentDMListener = null;
+  let currentDMTypingListener = null;
+
+  function buildPairKey(emailA, emailB) {
+    const a = (emailA || "").trim().toLowerCase();
+    const b = (emailB || "").trim().toLowerCase();
+    if (!a || !b) return "";
+    const safe = (x) => x.replace(/\./g, "*");
+    const arr = [safe(a), safe(b)].sort();
+    return `${arr[0]},${arr[1]}`;
+  }
+
+  function isDMActive() {
+    return !!currentDMKey;
+  }
 
   async function populateSidebar(chatData) {
     if (Object.keys(readMessages).length === 0) {
@@ -518,6 +535,148 @@
     });
 
     updateReadAllStatus();
+
+    // Populate DM list
+    try {
+      const dmList = document.getElementById("dm-list");
+      if (dmList) {
+        dmList.innerHTML = "";
+      }
+
+      const myKey = email.replace(/\./g, "*");
+      const dmsRef = ref(database, `dms`);
+      onValue(dmsRef, (snapshot) => {
+        const all = snapshot.val() || {};
+        const entries = Object.keys(all).filter((pair) => pair.includes(myKey));
+        if (dmList) dmList.innerHTML = "";
+        entries.forEach((pairKey) => {
+          const dmEl = document.createElement("div");
+          dmEl.className = "dm";
+          const [a, b] = pairKey.split(",");
+          const other = a === myKey ? b : a;
+          const otherEmail = other.replace(/\*/g, ".");
+          // Compute last message preview/timestamp
+          const thread = all[pairKey] || {};
+          let lastEntry = null;
+          Object.entries(thread).forEach(([id, msg]) => {
+            if (!lastEntry || id > lastEntry.id) lastEntry = { id, ...msg };
+          });
+          const preview = lastEntry && lastEntry.Message ? String(lastEntry.Message).replace(/<[^>]*>/g, "").slice(0, 40) : "";
+          const ts = lastEntry && lastEntry.Date ? new Date(lastEntry.Date).toLocaleString() : "";
+          dmEl.textContent = `${otherEmail}${preview ? " • " + preview : ""}${ts ? " • " + ts : ""}`;
+          dmEl.title = otherEmail;
+          dmEl.onclick = function () {
+            openDM(pairKey);
+          };
+          dmList && dmList.appendChild(dmEl);
+        });
+      });
+    } catch (e) {
+      // ignore DM list errors
+    }
+  }
+
+  // Create New DM dialog and handler
+  (function initDMCreateButton() {
+    const btn = document.getElementById("create-new-dm");
+    if (!btn) return;
+    btn.addEventListener("click", async () => {
+      const overlay = document.createElement("div");
+      overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000001;display:flex;align-items:center;justify-content:center";
+      const box = document.createElement("div");
+      box.style.cssText = `min-width:300px;max-width:90%;background:${isDark ? "#333" : "#fff"};color:${isDark ? "#eee" : "#333"};border:1px solid ${isDark ? "#555" : "#ccc"};border-radius:8px;padding:16px;`;
+      const label = document.createElement("label");
+      label.textContent = "Recipient email";
+      const input = document.createElement("input");
+      input.type = "email";
+      input.placeholder = "user@example.com";
+      input.style.cssText = "width:100%;margin:8px 0;padding:8px;";
+      const row = document.createElement("div");
+      row.style.cssText = "display:flex;gap:8px;justify-content:flex-end";
+      const cancel = document.createElement("button");
+      cancel.textContent = "Cancel";
+      const ok = document.createElement("button");
+      ok.textContent = "Start";
+      row.append(cancel, ok);
+      box.append(label, input, row);
+      overlay.append(box);
+      document.body.append(overlay);
+      const close = () => overlay.remove();
+      cancel.onclick = close;
+      ok.onclick = async () => {
+        const to = (input.value || "").trim();
+        const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to);
+        if (!valid) {
+          alert("Please enter a valid email address");
+          return;
+        }
+        const pairKey = buildPairKey(email, to);
+        if (!pairKey) return close();
+        // Ensure thread exists minimally, then open
+        const threadRef = ref(database, `dms/${pairKey}`);
+        const snap = await get(threadRef);
+        if (!snap.exists()) {
+          const meKey = email.replace(/\./g, "*");
+          const youKey = to.replace(/\./g, "*");
+          await set(threadRef, {
+            __meta__: {
+              createdAt: Date.now(),
+              participants: { [meKey]: true, [youKey]: true }
+            }
+          });
+        }
+        close();
+        openDM(pairKey);
+      };
+    });
+  })();
+
+  async function openDM(pairKey) {
+    const me = email.replace(/\./g, "*");
+    if (!pairKey.includes(me)) return; // client-side guard: only allow own DMs
+    currentDMKey = pairKey;
+    // Deselect channels
+    document.querySelectorAll(".server").forEach((s) => s.classList.remove("selected"));
+    // Clear messages
+    const messagesDiv = document.getElementById("messages");
+    messagesDiv.innerHTML = "";
+    // Stop prior listeners
+    if (currentChatListener) { currentChatListener(); currentChatListener = null; }
+    if (currentChatTypingListener) { currentChatTypingListener(); currentChatTypingListener = null; }
+    if (currentDMListener) { currentDMListener(); currentDMListener = null; }
+    if (currentDMTypingListener) { currentDMTypingListener(); currentDMTypingListener = null; }
+
+    // Mark read on open
+    const dmRef = ref(database, `dms/${pairKey}`);
+    const snap = await get(dmRef);
+    const messages = snap.val();
+    if (messages) {
+      const ids = Object.keys(messages).filter((k)=>k!=="__meta__").sort();
+      const latest = ids[ids.length - 1];
+      if (latest) await markMessagesAsRead(pairKey, latest, true);
+    }
+
+    // Listen for messages
+    currentDMListener = onValue(dmRef, async (snapshot) => {
+      if (!isDMActive() || currentDMKey !== pairKey) return;
+      const data = snapshot.val() || {};
+      const entries = Object.entries(data).filter(([k])=>k!=="__meta__").sort(([a],[b])=>a.localeCompare(b));
+      const appended = new Set();
+      messagesDiv.innerHTML = "";
+      for (const [id, msg] of entries) {
+        if (appended.has(id)) continue;
+        const div = document.createElement("div");
+        div.className = "message " + (msg.User === email ? "sent" : "received");
+        div.innerHTML = msg.Message || "";
+        messagesDiv.appendChild(div);
+        appended.add(id);
+      }
+      messagesDiv.scrollTop = 2000000;
+    });
+
+    // Typing indicators for DM
+    const typingRefDM = ref(database, `TypingDM/${pairKey}`);
+    currentDMTypingListener = onValue(typingRefDM, () => {}); // placeholder; reuse existing UI later if needed
   }
 
   async function updateUnreadCount(chatName) {
@@ -780,7 +939,7 @@
   async function sendTypingStart() {
     try {
       const key = email.replace(/\./g, "*");
-      const path = `Typing/${currentChat}`;
+      const path = isDMActive() ? `TypingDM/${currentDMKey}` : `Typing/${currentChat}`;
       const typingRef = ref(database, `${path}/${key}`);
       // Attempt to write the user's display name (Username from Accounts) so
       // other clients can show the proper name instead of the email local-part.
@@ -797,7 +956,7 @@
   async function sendTypingStop() {
     try {
       const key = email.replace(/\./g, "*");
-      const path = `Typing/${currentChat}/${key}`;
+      const path = isDMActive() ? `TypingDM/${currentDMKey}/${key}` : `Typing/${currentChat}/${key}`;
       const typingRef = ref(database, path);
       await remove(typingRef);
     } catch (e) {
@@ -849,6 +1008,7 @@
     const messagesDiv = document.getElementById("messages");
     messagesDiv.innerHTML = "";
     currentChat = chatName;
+    currentDMKey = null; // leaving DM context when loading a channel
 
     const chatRef = ref(database, `Chats/${chatName}`);
     const snapshot = await get(chatRef);
@@ -1355,7 +1515,7 @@
     });
   }
 
-  async function markMessagesAsRead(chatName, messageId) {
+  async function markMessagesAsRead(chatName, messageId, isDM = false) {
     const messageElement = document.querySelector(
       `[data-message-id="${messageId}"]`,
     );
@@ -1369,10 +1529,8 @@
 
     readMessages[chatName] = lastMessageId;
 
-    const readMessagesRef = ref(
-      database,
-      `Accounts/${email.replace(/\./g, "*")}/readMessages/${chatName}`,
-    );
+    const readPath = isDM ? `Accounts/${email.replace(/\./g, "*")}/readDMs/${chatName}` : `Accounts/${email.replace(/\./g, "*")}/readMessages/${chatName}`;
+    const readMessagesRef = ref(database, readPath);
     await set(readMessagesRef, lastMessageId);
 
     document.querySelectorAll(".message").forEach((msg) => {
@@ -1383,7 +1541,7 @@
       }
     });
     document.getElementById("bookmarklet-gui").scrollTop = 0;
-    await updateUnreadCount(chatName);
+    if (!isDM) await updateUnreadCount(chatName);
   }
   function createSnakeGame() {
     const temp_email =
@@ -2994,7 +3152,9 @@
     isSending = true;
     sendButton.disabled = true; */
     removeFakeHighlights();
-    const messagesRef = ref(database, `Chats/${currentChat}`);
+    const messagesRef = isDMActive()
+      ? ref(database, `dms/${currentDMKey}`)
+      : ref(database, `Chats/${currentChat}`);
     let message = document
       .getElementById("message-input")
       .innerHTML.substring(0, 5000);

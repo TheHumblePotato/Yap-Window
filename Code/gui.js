@@ -1613,6 +1613,7 @@
                 </div>
             </div>
             <div id="bottom-left-sidebar">
+                <button id="create-new-dm" style="padding: 6px 8px; background-color: ${isDark ? "#4a5d7e" : "#4285f4"}; color: white; border: none; border-radius: 4px; width: 90%; font-size: 12px; font-weight: 500; transition: background-color 0.2s ease; margin-bottom: 6px;">Create New DM</button>
                 <div id="dm-list">
                 </div>
             </div>
