@@ -565,10 +565,10 @@
 
       const myKey = email.replace(/\./g, "*");
       console.log("Populating DM list for user:", myKey);
-      
+
       // Clear the list without adding a header
       dmList.innerHTML = "";
-      
+
       // Show loading message initially
       const loadingMsg = document.createElement("div");
       loadingMsg.className = "loading-dms-message";
@@ -578,13 +578,14 @@
       loadingMsg.style.color = "#888";
       loadingMsg.style.padding = "5px";
       dmList.appendChild(loadingMsg);
-      
+
       // Use onValue to keep DM list updated in real-time
       const dmsRef = ref(database, `dms`);
       onValue(dmsRef, (snapshot) => {
         try {
           const all = snapshot.val() || {};
-          
+          console.log("Fetched data:", all);
+
           // Filter DMs where the current user is a participant
           const entries = Object.keys(all).filter(pairKey => {
             // Check if this DM has the current user as a participant
@@ -593,10 +594,12 @@
             }
             return all[pairKey].__meta__.participants[myKey] === true;
           });
-          
+
+          console.log("Filtered DM entries for user:", entries);
+
           // Clear the list
           dmList.innerHTML = "";
-          
+
           if (entries.length === 0) {
             const noDmsMsg = document.createElement("div");
             noDmsMsg.className = "no-dms-message";
@@ -608,12 +611,13 @@
             dmList.appendChild(noDmsMsg);
             return;
           }
-          
+
           // Track unread messages
           const userRef = ref(database, `users/${myKey}/read_status`);
           get(userRef).then((userSnapshot) => {
             const readStatus = userSnapshot.val() || {};
-            
+            console.log("Read status:", readStatus);
+
             entries.forEach((pairKey) => {
               const dmEl = document.createElement("div");
               dmEl.className = "dm";
@@ -623,32 +627,32 @@
               dmEl.style.cursor = "pointer";
               dmEl.style.transition = "background-color 0.2s";
               dmEl.setAttribute("data-dm-key", pairKey);
-              
+
               // Split by comma or underscore (supporting both old and new format)
               const parts = pairKey.includes(",") ? pairKey.split(",") : pairKey.split("_");
               const other = parts[0] === myKey ? parts[1] : parts[0];
               const otherEmail = other.replace(/\*/g, ".");
-              
+
               // Create container for name and unread indicator
               const nameContainer = document.createElement("div");
               nameContainer.style.display = "flex";
               nameContainer.style.justifyContent = "space-between";
               nameContainer.style.alignItems = "center";
               nameContainer.style.width = "100%";
-              
+
               const nameSpan = document.createElement("span");
               nameContainer.appendChild(nameSpan);
-              
+
               // Check for unread messages
               const dmReadStatus = readStatus[pairKey] || {};
               const lastReadId = dmReadStatus.lastReadId || "";
-              
+
               // Get the latest message in this DM
               const dmRef = ref(database, `dms/${pairKey}`);
               get(dmRef).then((dmSnapshot) => {
                 const dmData = dmSnapshot.val() || {};
                 const messageIds = Object.keys(dmData).filter(k => k !== "__meta__");
-                
+
                 if (messageIds.length > 0) {
                   // Sort by timestamp
                   messageIds.sort((a, b) => {
@@ -656,10 +660,10 @@
                     const timeB = dmData[b].Date ? new Date(dmData[b].Date).getTime() : 0;
                     return timeA - timeB;
                   });
-                  
+
                   const latestId = messageIds[messageIds.length - 1];
                   const latestMsg = dmData[latestId];
-                  
+
                   // Check if there are unread messages
                   if (latestId !== lastReadId && latestMsg.User !== email) {
                     const unreadIndicator = document.createElement("div");
@@ -672,37 +676,55 @@
                     nameContainer.appendChild(unreadIndicator);
                   }
                 }
+              }).catch((error) => {
+                console.error("Error getting DM data for", pairKey, error);
               });
-              
+
               // Get username for display
               getUsernameFromEmail(otherEmail).then(username => {
                 nameSpan.textContent = username || otherEmail;
                 dmEl.title = otherEmail;
+              }).catch((error) => {
+                console.error("Error getting username for", otherEmail, error);
+                nameSpan.textContent = otherEmail;
+                dmEl.title = otherEmail;
               });
-              
+
               dmEl.appendChild(nameContainer);
-              
+
               dmEl.onclick = function () {
                 console.log("Opening DM:", pairKey);
                 // Deselect all channels and DMs
                 document.querySelectorAll(".server").forEach((s) => s.classList.remove("selected"));
                 document.querySelectorAll(".dm").forEach((d) => d.classList.remove("selected"));
                 this.classList.add("selected");
-                
+
                 // Remove unread indicator when opening
                 const indicator = this.querySelector(".unread-indicator");
                 if (indicator) {
                   indicator.remove();
                 }
-                
+
                 openDM(pairKey);
               };
-              
+
               dmList.appendChild(dmEl);
             });
+          }).catch((error) => {
+            console.error("Error getting read status:", error);
           });
         } catch (innerError) {
           console.error("Error processing DMs:", innerError);
+          // Show error message in the DM list
+          dmList.innerHTML = "";
+          const errorMsg = document.createElement("div");
+          errorMsg.className = "error-dms-message";
+          errorMsg.textContent = "Could not load DMs";
+          errorMsg.style.fontSize = "12px";
+          errorMsg.style.fontStyle = "italic";
+          errorMsg.style.color = "#f44336";
+          errorMsg.style.padding = "5px";
+          dmList.appendChild(errorMsg);
         }
       }, (error) => {
         console.error("Error loading DMs:", error);
