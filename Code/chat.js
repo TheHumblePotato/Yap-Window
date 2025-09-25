@@ -538,15 +538,29 @@
     updateReadAllStatus();
     
     // Populate DM list separately
-    populateDMList();
+    await populateDMList();
   }
 
-  function populateDMList() {
+  async function populateDMList() {
     try {
       const dmList = document.getElementById("dm-list");
       if (!dmList) {
         console.log("DM list element not found");
         return;
+      }
+
+      // Wait for email to be available
+      if (!email) {
+        console.log("Email not available yet, waiting for auth...");
+        await new Promise(res => {
+          const unsubscribe = onAuthStateChanged(auth, (user) => {
+            if (user) {
+              email = user.email;
+              unsubscribe();
+              res();
+            }
+          });
+        });
       }
 
       const myKey = email.replace(/\./g, "*");
@@ -870,8 +884,8 @@
         
         document.getElementById("dm-screen").classList.add("hidden");
         chatScreen.style.display = "flex";
-        populateDMList(); // Refresh DM list
-        openDM(pairKey);
+        await populateDMList(); // Refresh DM list
+        await openDM(pairKey);
       } catch (error) {
         console.error("Error creating DM:", error);
         alert("Error creating DM. Please check your Firebase rules and try again.");
@@ -7560,7 +7574,7 @@
   checkForUpdates();
   setupGlobalFileViewer();
   fetchChatList();
-  populateDMList(); // Initialize DM list
+  await populateDMList(); // Initialize DM list
   setupUnreadCountUpdates();
   await initializeReadMessages();
   loadMessages("General");
