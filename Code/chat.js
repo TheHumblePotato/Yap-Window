@@ -588,23 +588,34 @@
 
   // Create New DM dialog and handler
   (function initDMCreateButton() {
+    console.log("Initializing DM create button...");
     const btn = document.getElementById("create-new-dm");
-    if (!btn) return;
+    console.log("DM button found:", btn);
+    if (!btn) {
+      console.log("DM button not found!");
+      return;
+    }
     btn.addEventListener("click", async () => {
+      console.log("DM button clicked!");
       // Show full-screen DM creation UI like channel screen
       chatScreen.style.display = "none";
       const dmScreen = document.getElementById("dm-screen");
+      console.log("DM screen found:", dmScreen);
       dmScreen.classList.remove("hidden");
       initDMMemberSelector();
     });
+    console.log("DM button event listener added");
   })();
 
   function initDMMemberSelector() {
+    console.log("Initializing DM member selector...");
     const selected = document.getElementById("dm-selected-members");
     const list = document.getElementById("dm-members-list");
     const search = document.getElementById("dm-member-search");
     const backBtn = document.getElementById("back-dm");
     const submitBtn = document.getElementById("submit-dm");
+
+    console.log("DM elements found:", { selected, list, search, backBtn, submitBtn });
 
     selected.innerHTML = "";
     list.innerHTML = "";
@@ -614,9 +625,11 @@
 
     async function updateAvailableMembers() {
       try {
+        console.log("Loading available members from database...");
         const accountsRef = ref(database, "Accounts");
         const snapshot = await get(accountsRef);
         const accounts = snapshot.val();
+        console.log("Accounts loaded:", accounts);
 
         const selectedEmails = new Set(
           Array.from(document.querySelectorAll("#dm-selected-members .selected-member"))
@@ -711,19 +724,24 @@
     };
 
     submitBtn.onclick = async () => {
+      console.log("Submit DM button clicked!");
       const chosen = selected.querySelector(".selected-member");
+      console.log("Selected member:", chosen);
       if (!chosen) {
         alert("Please pick a recipient");
         return;
       }
       const to = chosen.textContent.replace(/×$/, "").trim();
+      console.log("Recipient email:", to);
       const pairKey = buildPairKey(email, to);
+      console.log("Pair key:", pairKey);
       const threadRef = ref(database, `dms/${pairKey}`);
       
       try {
         // Create the DM thread with participants map
         const meKey = email.replace(/\./g, "*");
         const youKey = to.replace(/\./g, "*");
+        console.log("Creating DM thread with participants:", { [meKey]: true, [youKey]: true });
         await set(threadRef, {
           __meta__: { createdAt: Date.now(), participants: { [meKey]: true, [youKey]: true } }
         });
