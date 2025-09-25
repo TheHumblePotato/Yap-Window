@@ -550,80 +550,110 @@
 
       const myKey = email.replace(/\./g, "*");
       console.log("Populating DM list for user:", myKey);
-      const dmsRef = ref(database, `dms`);
       
-      // Use once() instead of onValue() to load DMs only once on page load
-      // This prevents duplicate entries when creating new DMs
-      get(dmsRef).then((snapshot) => {
-        const all = snapshot.val() || {};
-        console.log("All DMs:", all);
-        
-        // Filter DMs where the current user is a participant
-        const entries = Object.keys(all).filter(pairKey => {
-          // Check if this DM has the current user as a participant
-          if (!all[pairKey] || !all[pairKey].__meta__ || !all[pairKey].__meta__.participants) {
-            return false;
-          }
-          return all[pairKey].__meta__.participants[myKey] === true;
-        });
-        
-        console.log("User's DM entries:", entries);
-        dmList.innerHTML = "";
-        
-        // Add a header for the DM section
-        const dmHeader = document.createElement("div");
-        dmHeader.className = "dm-section-header";
-        dmHeader.textContent = "Direct Messages";
-        dmHeader.style.fontWeight = "bold";
-        dmHeader.style.marginBottom = "5px";
-        dmHeader.style.marginTop = "5px";
-        dmHeader.style.fontSize = "14px";
-        dmList.appendChild(dmHeader);
-        
-        if (entries.length === 0) {
-          const noDmsMsg = document.createElement("div");
-          noDmsMsg.className = "no-dms-message";
-          noDmsMsg.textContent = "No direct messages yet";
-          noDmsMsg.style.fontSize = "12px";
-          noDmsMsg.style.fontStyle = "italic";
-          noDmsMsg.style.color = "#888";
-          noDmsMsg.style.padding = "5px";
-          dmList.appendChild(noDmsMsg);
-        }
-        
-        entries.forEach((pairKey) => {
-          const dmEl = document.createElement("div");
-          dmEl.className = "dm";
-          dmEl.style.padding = "8px";
-          dmEl.style.margin = "2px 0";
-          dmEl.style.borderRadius = "4px";
-          dmEl.style.cursor = "pointer";
-          dmEl.style.transition = "background-color 0.2s";
+      // Add a header for the DM section
+      dmList.innerHTML = "";
+      const dmHeader = document.createElement("div");
+      dmHeader.className = "dm-section-header";
+      dmHeader.textContent = "Direct Messages";
+      dmHeader.style.fontWeight = "bold";
+      dmHeader.style.marginBottom = "5px";
+      dmHeader.style.marginTop = "5px";
+      dmHeader.style.fontSize = "14px";
+      dmList.appendChild(dmHeader);
+      
+      // Show loading message initially
+      const loadingMsg = document.createElement("div");
+      loadingMsg.className = "loading-dms-message";
+      loadingMsg.textContent = "Loading DMs...";
+      loadingMsg.style.fontSize = "12px";
+      loadingMsg.style.fontStyle = "italic";
+      loadingMsg.style.color = "#888";
+      loadingMsg.style.padding = "5px";
+      dmList.appendChild(loadingMsg);
+      
+      // Use onValue to keep DM list updated in real-time
+      const dmsRef = ref(database, `dms`);
+      onValue(dmsRef, (snapshot) => {
+        try {
+          const all = snapshot.val() || {};
+          console.log("All DMs:", all);
           
-          // Split by comma or underscore (supporting both old and new format)
-          const parts = pairKey.includes(",") ? pairKey.split(",") : pairKey.split("_");
-          const other = parts[0] === myKey ? parts[1] : parts[0];
-          const otherEmail = other.replace(/\*/g, ".");
-          
-          // Get username for display
-          getUsernameFromEmail(otherEmail).then(username => {
-            dmEl.textContent = username || otherEmail;
-            dmEl.title = otherEmail;
+          // Filter DMs where the current user is a participant
+          const entries = Object.keys(all).filter(pairKey => {
+            // Check if this DM has the current user as a participant
+            if (!all[pairKey] || !all[pairKey].__meta__ || !all[pairKey].__meta__.participants) {
+              return false;
+            }
+            return all[pairKey].__meta__.participants[myKey] === true;
           });
           
-          dmEl.onclick = function () {
-            console.log("Opening DM:", pairKey);
-            // Deselect all channels and DMs
-            document.querySelectorAll(".server").forEach((s) => s.classList.remove("selected"));
-            document.querySelectorAll(".dm").forEach((d) => d.classList.remove("selected"));
-            this.classList.add("selected");
-            openDM(pairKey);
-          };
+          console.log("User's DM entries:", entries);
           
-          dmList.appendChild(dmEl);
-        });
-      }).catch(error => {
+          // Clear the list but keep the header
+          while (dmList.childNodes.length > 1) {
+            dmList.removeChild(dmList.lastChild);
+          }
+          
+          if (entries.length === 0) {
+            const noDmsMsg = document.createElement("div");
+            noDmsMsg.className = "no-dms-message";
+            noDmsMsg.textContent = "No direct messages yet";
+            noDmsMsg.style.fontSize = "12px";
+            noDmsMsg.style.fontStyle = "italic";
+            noDmsMsg.style.color = "#888";
+            noDmsMsg.style.padding = "5px";
+            dmList.appendChild(noDmsMsg);
+          }
+          
+          entries.forEach((pairKey) => {
+            const dmEl = document.createElement("div");
+            dmEl.className = "dm";
+            dmEl.style.padding = "8px";
+            dmEl.style.margin = "2px 0";
+            dmEl.style.borderRadius = "4px";
+            dmEl.style.cursor = "pointer";
+            dmEl.style.transition = "background-color 0.2s";
+            
+            // Split by comma or underscore (supporting both old and new format)
+            const parts = pairKey.includes(",") ? pairKey.split(",") : pairKey.split("_");
+            const other = parts[0] === myKey ? parts[1] : parts[0];
+            const otherEmail = other.replace(/\*/g, ".");
+            
+            // Get username for display
+            getUsernameFromEmail(otherEmail).then(username => {
+              dmEl.textContent = username || otherEmail;
+              dmEl.title = otherEmail;
+            });
+            
+            dmEl.onclick = function () {
+              console.log("Opening DM:", pairKey);
+              // Deselect all channels and DMs
+              document.querySelectorAll(".server").forEach((s) => s.classList.remove("selected"));
+              document.querySelectorAll(".dm").forEach((d) => d.classList.remove("selected"));
+              this.classList.add("selected");
+              openDM(pairKey);
+            };
+            
+            dmList.appendChild(dmEl);
+          });
+        } catch (innerError) {
+          console.error("Error processing DMs:", innerError);
+        }
+      }, (error) => {
         console.error("Error loading DMs:", error);
+        // Show error message in the DM list
+        while (dmList.childNodes.length > 1) {
+          dmList.removeChild(dmList.lastChild);
+        }
+        const errorMsg = document.createElement("div");
+        errorMsg.className = "error-dms-message";
+        errorMsg.textContent = "Could not load DMs";
+        errorMsg.style.fontSize = "12px";
+        errorMsg.style.fontStyle = "italic";
+        errorMsg.style.color = "#f44336";
+        errorMsg.style.padding = "5px";
+        dmList.appendChild(errorMsg);
       });
     } catch (error) {
       console.error("Error in populateDMList:", error);
