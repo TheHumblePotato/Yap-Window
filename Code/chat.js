@@ -440,6 +440,7 @@
   let currentDMKey = null; // null means channel mode; otherwise `/dms/{pairKey}`
   let currentDMListener = null;
   let currentDMTypingListener = null;
+  let dmListListener = null;
 
   function buildPairKey(emailA, emailB) {
     const a = (emailA || "").trim().toLowerCase();
@@ -536,9 +537,6 @@
     });
 
     updateReadAllStatus();
-    
-    // Populate DM list separately
-    await populateDMList();
   }
 
   async function populateDMList() {
@@ -581,7 +579,13 @@
 
       // Use onValue to keep DM list updated in real-time
       const dmsRef = ref(database, `dms`);
-      onValue(dmsRef, (snapshot) => {
+      let isInitialLoad = true;
+
+      if (dmListListener) {
+        dmListListener();
+        dmListListener = null;
+      }
+      dmListListener = onValue(dmsRef, (snapshot) => {
         try {
           const all = snapshot.val() || {};
           console.log("Fetched data:", all);
@@ -597,10 +601,9 @@
 
           console.log("Filtered DM entries for user:", entries);
 
-          // Clear the list
-          dmList.innerHTML = "";
-
           if (entries.length === 0) {
+            // Clear the list and show "no DMs" message
+            dmList.innerHTML = "";
             const noDmsMsg = document.createElement("div");
             noDmsMsg.className = "no-dms-message";
             noDmsMsg.textContent = "No direct messages yet";
@@ -617,6 +620,13 @@
           get(userRef).then((userSnapshot) => {
             const readStatus = userSnapshot.val() || {};
             console.log("Read status:", readStatus);
+
+            // Only clear the list if this is not the initial load
+            if (!isInitialLoad) {
+              dmList.innerHTML = "";
+            } else {
+              isInitialLoad = false;
+            }
 
             entries.forEach((pairKey) => {
               const dmEl = document.createElement("div");
@@ -712,6 +722,16 @@
             });
           }).catch((error) => {
             console.error("Error getting read status:", error);
+            // Show error message in the DM list
+            dmList.innerHTML = "";
+            const errorMsg = document.createElement("div");
+            errorMsg.className = "error-dms-message";
+            errorMsg.textContent = "Could not load DMs";
+            errorMsg.style.fontSize = "12px";
+            errorMsg.style.fontStyle = "italic";
+            errorMsg.style.color = "#f44336";
+            errorMsg.style.padding = "5px";
+            dmList.appendChild(errorMsg);
           });
         } catch (innerError) {
           console.error("Error processing DMs:", innerError);
@@ -1120,7 +1140,7 @@
         badge.style.backgroundColor = isDark ? "#ff6b6b" : "#ff4444";
         badge.style.color = "white";
       }
-    }
+  }
 
     updateReadAllStatus();
   }
