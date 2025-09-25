@@ -1409,6 +1409,15 @@
       const typingKeys = Object.keys(data).filter((k) => k !== email.replace(/\./g, "*"));
       const messagesDiv = document.getElementById("messages");
 
+      // Create bottom typing indicator element if it doesn't exist
+      let bottom = document.getElementById("typing-indicator-bottom");
+      if (!bottom) {
+        bottom = document.createElement('div');
+        bottom.id = 'typing-indicator-bottom';
+        bottom.className = 'typing-indicator';
+        bottom.innerHTML = '<div id="typing-indicator-bottom-text"></div>';
+      }
+
       // Resolve display names for typing users. Prefer the username field stored in the Typing entry;
       // if missing, fall back to a DB lookup which returns the account Username or the email local-part.
       // Resolve display names for typing users, but keep their keys so we can
@@ -1504,10 +1513,12 @@
         }
       }
 
-      // Update message-area indicator (below last message). We'll create a small element with id typing-indicator-bottom
+      // Update message-area indicator (below last message)
       const bottomText = document.getElementById("typing-indicator-bottom-text");
       if (entries.length === 0) {
-        if (bottom && bottom.parentElement) bottom.parentElement.removeChild(bottom);
+        if (bottom && bottom.parentElement) {
+          bottom.parentElement.removeChild(bottom);
+        }
       } else {
         // remove any static/top-level dots that might be in the bottom container
         if (bottom) {
