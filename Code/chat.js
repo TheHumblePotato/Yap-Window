@@ -621,10 +621,13 @@
             const readStatus = userSnapshot.val() || {};
             console.log("Read status:", readStatus);
 
-            // Only clear the list if this is not the initial load
+            // Clear the list only if this is not the initial load
             if (!isInitialLoad) {
               dmList.innerHTML = "";
-            } else {
+            }
+
+            // Set isInitialLoad to false after first successful load
+            if (isInitialLoad) {
               isInitialLoad = false;
             }
 
