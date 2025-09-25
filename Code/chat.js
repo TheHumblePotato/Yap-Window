@@ -942,22 +942,22 @@
     const me = email.replace(/\./g, "*");
     if (!pairKey.includes(me)) return; // client-side guard: only allow own DMs
     currentDMKey = pairKey;
-    
+
     // Deselect channels and other DMs
     document.querySelectorAll(".server").forEach((s) => s.classList.remove("selected"));
     document.querySelectorAll(".dm").forEach((d) => d.classList.remove("selected"));
-    
+
     // Select the current DM in sidebar
     const dmElement = document.querySelector(`.dm[data-dm-key="${pairKey}"]`);
     if (dmElement) {
       dmElement.classList.add("selected");
     }
-    
+
     // Update header to show DM recipient
     const parts = pairKey.includes(",") ? pairKey.split(",") : pairKey.split("_");
     const otherKey = parts[0] === me ? parts[1] : parts[0];
     const otherEmail = otherKey.replace(/\*/g, ".");
-    
+
     // Update channel name display
     const channelNameDisplay = document.getElementById("channel-name");
     if (channelNameDisplay) {
@@ -965,11 +965,13 @@
         channelNameDisplay.textContent = username || otherEmail;
       });
     }
-    
+
     // Clear messages
     const messagesDiv = document.getElementById("messages");
     messagesDiv.innerHTML = "";
-    
+    currentChat = pairKey; // Set currentChat for DM context
+    currentDMKey = pairKey;
+
     // Stop prior listeners
     if (currentChatListener) { currentChatListener(); currentChatListener = null; }
     if (currentChatTypingListener) { currentChatTypingListener(); currentChatTypingListener = null; }
@@ -985,7 +987,7 @@
       const latest = ids[ids.length - 1];
       if (latest) {
         await markMessagesAsRead(pairKey, latest, true);
-        
+
         // Remove unread indicator from sidebar
         if (dmElement) {
           const indicator = dmElement.querySelector(".unread-indicator");
@@ -996,102 +998,449 @@
       }
     }
 
-    // Keep track of rendered messages to avoid duplicates
-    const renderedMessageIds = new Set();
-    
-    // Function to render a single message
-    const renderMessage = async (id, msg) => {
-      if (renderedMessageIds.has(id)) return; // Skip if already rendered
-      renderedMessageIds.add(id);
-      
-      const div = document.createElement("div");
-      div.className = "message " + (msg.User === email ? "sent" : "received");
-      div.setAttribute("data-message-id", id);
-      div.setAttribute("data-user", msg.User);
-      
-      // Get username for display
-      const username = await getUsernameFromEmail(msg.User);
-      const displayName = username || msg.User;
-      
-      // Format timestamp with same format as channels
-      let timestamp = "";
-      if (msg.Date) {
-        const date = new Date(msg.Date);
-        const today = new Date();
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-        
-        if (date.toDateString() === today.toDateString()) {
-          timestamp = `Today at ${date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
-        } else if (date.toDateString() === yesterday.toDateString()) {
-          timestamp = `Yesterday at ${date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
-        } else {
-          timestamp = `${date.toLocaleDateString()} ${date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
-        }
-      }
-      
-      // Create message structure like channel messages
-      const headerInfo = document.createElement("p");
-      headerInfo.className = "send-info";
-      headerInfo.textContent = `${displayName} • ${timestamp}`;
-      
-      const messageContent = document.createElement("p");
-      messageContent.innerHTML = msg.Message || "";
-      
-      div.appendChild(headerInfo);
-      div.appendChild(messageContent);
-      messagesDiv.appendChild(div);
-      
-      return div;
-    };
-
-    // Listen for new messages only
-    let initialLoad = true;
-    let lastMessageKey = null;
-    
-    currentDMListener = onValue(dmRef, async (snapshot) => {
-      if (!isDMActive() || currentDMKey !== pairKey) return;
+    // Typing indicators: listen for typing presence in this DM
+    const typingRefDM = ref(database, `TypingDM/${pairKey}`);
+    // Persistent maps to store per-user line elements so we don't recreate them
+    // on every typing snapshot update. Keeping the dot elements stable prevents
+    // CSS animations from restarting.
+    const typingNodesAbove = new Map();
+    const typingNodesBottom = new Map();
+    async function renderTypingIndicators(snapshot) {
       const data = snapshot.val() || {};
-      const entries = Object.entries(data).filter(([k])=>k!=="__meta__");
-      
-      // Sort by timestamp
-      entries.sort(([a, msgA], [b, msgB]) => {
-        const timeA = msgA.Date ? new Date(msgA.Date).getTime() : 0;
-        const timeB = msgB.Date ? new Date(msgB.Date).getTime() : 0;
-        return timeA - timeB;
-      });
-      
-      if (initialLoad) {
-        // First load - render all messages
-        messagesDiv.innerHTML = "";
-        renderedMessageIds.clear();
-        
-        for (const [id, msg] of entries) {
-          await renderMessage(id, msg);
-          lastMessageKey = id;
-        }
-        initialLoad = false;
-      } else {
-        // Subsequent updates - only render new messages
-        for (const [id, msg] of entries) {
-          if (!renderedMessageIds.has(id)) {
-            const msgElement = await renderMessage(id, msg);
-            if (msgElement && msg.User !== email) {
-              // Mark as read if it's not from the current user
-              markMessagesAsRead(pairKey, id, false);
+      const typingKeys = Object.keys(data).filter((k) => k !== email.replace(/\./g, "*"));
+      const messagesDiv = document.getElementById("messages");
+
+      // Create bottom typing indicator element if it doesn't exist
+      let bottom = document.getElementById("typing-indicator-bottom");
+      if (!bottom) {
+        bottom = document.createElement('div');
+        bottom.id = 'typing-indicator-bottom';
+        bottom.className = 'typing-indicator';
+        bottom.innerHTML = '<div id="typing-indicator-bottom-text"></div>';
+      }
+
+      // Resolve display names for typing users. Prefer the username field stored in the Typing entry;
+      // if missing, fall back to a DB lookup which returns the account Username or the email local-part.
+      // Resolve display names for typing users, but keep their keys so we can
+      // reuse existing DOM elements and avoid restarting the dot animation on every update.
+      const entries = await Promise.all(
+        typingKeys.slice(0, 3).map(async (key) => {
+          const entry = data[key] || {};
+          if (entry.username && typeof entry.username === "string" && entry.username.trim() !== "") {
+            return { key, name: entry.username };
+          }
+          // key is stored with '*' for dots; convert back to a normal email before lookup
+          const candidateEmail = key.replace(/\*/g, ".");
+          try {
+            const resolved = await getUsernameFromEmail(candidateEmail);
+            return { key, name: resolved || (candidateEmail.includes("@") ? candidateEmail.split("@")[0] : candidateEmail) };
+          } catch (err) {
+            return { key, name: candidateEmail.includes("@") ? candidateEmail.split("@")[0] : candidateEmail };
+          }
+        }),
+      );
+
+      // Update above-input indicator (each name gets its own line with animated dots)
+      const above = document.getElementById("typing-above-input");
+      const aboveText = document.getElementById("typing-above-input-text");
+      if (above) {
+        if (entries.length === 0) {
+          above.style.display = "none";
+        } else {
+          above.style.display = "flex";
+          if (aboveText) {
+            // remove any static/top-level dots that were placed in the markup
+            // (only remove immediate children named .typing-dots, not dots inside per-line elements)
+            Array.from(above.children)
+              .filter((c) => c.classList && c.classList.contains('typing-dots'))
+              .forEach((d) => d.remove());
+
+            // Ensure container is columnar
+            aboveText.style.display = "flex";
+            aboveText.style.flexDirection = "column";
+            aboveText.style.rowGap = "6px";
+
+            // If aboveText currently only contains the default text node, clear it once
+            if (aboveText.children.length === 0 && aboveText.textContent.trim()) {
+              aboveText.innerHTML = "";
             }
-            lastMessageKey = id;
+
+            // Use persistent map to avoid recreating elements
+            // Ensure container is prepared (don't clear it)
+            for (const { key, name } of entries) {
+              if (typingNodesAbove.has(key)) {
+                // update text only
+                const node = typingNodesAbove.get(key);
+                const txt = node.querySelector('.typing-text');
+                if (txt) txt.textContent = `${name} is typing...`;
+                // make visible
+                node.style.visibility = 'visible';
+                node.style.opacity = '1';
+              } else {
+                const line = document.createElement('div');
+                line.dataset.typingKey = key;
+                line.style.display = 'flex';
+                line.style.alignItems = 'center';
+                line.style.columnGap = '8px';
+                line.style.margin = '2px 0';
+
+                const dots = document.createElement('div');
+                dots.className = 'typing-dots';
+                dots.innerHTML = '<span></span><span></span><span></span>';
+
+                const txt = document.createElement('div');
+                txt.className = 'typing-text';
+                txt.textContent = `${name} is typing...`;
+
+                line.appendChild(dots);
+                line.appendChild(txt);
+                // append once and store in the persistent map
+                aboveText.appendChild(line);
+                typingNodesAbove.set(key, line);
+              }
+            }
+
+            // Hide any nodes that are not currently typing (but keep them in DOM)
+            Array.from(typingNodesAbove.keys()).forEach((k) => {
+              if (!entries.find((e) => e.key === k)) {
+                const n = typingNodesAbove.get(k);
+                if (n) {
+                  n.style.visibility = 'hidden';
+                  n.style.opacity = '0';
+                }
+              }
+            });
           }
         }
       }
-      
-      // Scroll to bottom
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+      // Update message-area indicator (below last message)
+      const bottomText = document.getElementById("typing-indicator-bottom-text");
+      if (entries.length === 0) {
+        if (bottom && bottom.parentElement) {
+          bottom.parentElement.removeChild(bottom);
+        }
+      } else {
+        // remove any static/top-level dots that might be in the bottom container
+        if (bottom) {
+          Array.from(bottom.children)
+            .filter((c) => c.classList && c.classList.contains('typing-dots'))
+            .forEach((d) => d.remove());
+        }
+
+        if (bottomText) {
+          // If bottomText currently only contains default text, clear once
+          if (bottomText.children.length === 0 && bottomText.textContent.trim()) {
+            bottomText.innerHTML = '';
+          }
+
+          // Use persistent bottom map to avoid recreation
+          for (const { key, name } of entries) {
+            if (typingNodesBottom.has(key)) {
+              const node = typingNodesBottom.get(key);
+              const txt = node.querySelector('.typing-text');
+              if (txt) txt.textContent = `${name} is typing...`;
+              node.style.visibility = 'visible';
+              node.style.opacity = '1';
+            } else {
+              const line = document.createElement('div');
+              line.dataset.typingKey = key;
+              line.style.display = 'flex';
+              line.style.alignItems = 'center';
+              line.style.columnGap = '8px';
+              line.style.margin = '2px 0';
+
+              const dots = document.createElement('div');
+              dots.className = 'typing-dots';
+              dots.innerHTML = '<span></span><span></span><span></span>';
+
+              const txt = document.createElement('div');
+              txt.className = 'typing-text';
+              txt.textContent = `${name} is typing...`;
+
+              line.appendChild(dots);
+              line.appendChild(txt);
+              bottomText.appendChild(line);
+              typingNodesBottom.set(key, line);
+            }
+          }
+
+          // hide leftover bottom nodes
+          Array.from(typingNodesBottom.keys()).forEach((k) => {
+            if (!entries.find((e) => e.key === k)) {
+              const n = typingNodesBottom.get(k);
+              if (n) {
+                n.style.visibility = 'hidden';
+                n.style.opacity = '0';
+              }
+            }
+          });
+        }
+        // ensure bottom is appended to messagesDiv
+        if (!messagesDiv.querySelector("#typing-indicator-bottom")) {
+          messagesDiv.appendChild(bottom);
+          // scroll to bottom if user was near bottom
+          messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+      }
+    }
+
+    const appendedMessages = new Set();
+    let loadedMessages = [];
+    let isLoadingMore = false;
+    let initialLoad = true;
+    let oldestLoadedTimestamp = null;
+    const MESSAGES_PER_LOAD = 100;
+
+    messagesDiv.addEventListener("scroll", async () => {
+      if (
+        messagesDiv.scrollTop <= 100 &&
+        !isLoadingMore &&
+        loadedMessages.length > 0
+      ) {
+        isLoadingMore = true;
+
+        const oldestDisplayedMessage = messagesDiv.firstChild;
+        if (
+          oldestDisplayedMessage &&
+          oldestDisplayedMessage.dataset.messageId
+        ) {
+          const oldestDisplayedId = oldestDisplayedMessage.dataset.messageId;
+          const oldestDisplayedIndex = loadedMessages.findIndex(
+            (msg) => msg.id === oldestDisplayedId,
+          );
+
+          if (oldestDisplayedIndex > 0) {
+            const oldScrollHeight = messagesDiv.scrollHeight;
+            const oldScrollTop = messagesDiv.scrollTop;
+
+            const olderMessages = loadedMessages.slice(
+              Math.max(0, oldestDisplayedIndex - MESSAGES_PER_LOAD),
+              oldestDisplayedIndex,
+            );
+
+            for (let i = olderMessages.length - 1; i >= 0; i--) {
+              await appendSingleMessage(olderMessages[i], true);
+            }
+
+            requestAnimationFrame(() => {
+              const newScrollHeight = messagesDiv.scrollHeight;
+              const heightDifference = newScrollHeight - oldScrollHeight;
+              messagesDiv.scrollTop = oldScrollTop + heightDifference;
+            });
+          }
+        }
+        isLoadingMore = false;
+      }
     });
 
-    // Typing indicators for DM
-    const typingRefDM = ref(database, `TypingDM/${pairKey}`);
-    currentDMTypingListener = onValue(typingRefDM, () => {}); // placeholder; reuse existing UI later if needed
+    async function appendSingleMessage(message, prepend = false) {
+      if (appendedMessages.has(message.id) || currentDMKey !== pairKey) return;
+
+      const messageDate = new Date(message.Date);
+      const username = message.User;
+      const lastReadMessage = readMessages[pairKey] || "";
+
+      const wasNearBottom =
+        messagesDiv.scrollHeight -
+          messagesDiv.scrollTop -
+          messagesDiv.clientHeight <=
+        20;
+
+      let adjacentMessageDiv = null;
+      const timeThreshold = 5 * 60 * 1000;
+
+      if (prepend) {
+        const firstMessage = messagesDiv.firstChild;
+        if (
+          firstMessage &&
+          firstMessage.dataset.user === username &&
+          Math.abs(new Date(firstMessage.dataset.date) - messageDate) <
+            timeThreshold
+        ) {
+          adjacentMessageDiv = firstMessage;
+        }
+      } else {
+        const lastMessage = messagesDiv.lastChild;
+        if (
+          lastMessage &&
+          lastMessage.dataset.user === username &&
+          Math.abs(new Date(lastMessage.dataset.date) - messageDate) <
+            timeThreshold
+        ) {
+          adjacentMessageDiv = lastMessage;
+        }
+      }
+
+      if (adjacentMessageDiv) {
+
+  // Clean up previous typing listener if present
+  if (currentDMTypingListener) currentDMTypingListener();
+  currentDMTypingListener = onValue(typingRefDM, renderTypingIndicators);
+        const messageContent = document.createElement("p");
+        messageContent.innerHTML = message.Message;
+        messageContent.style.marginTop = "5px";
+
+        adjacentMessageDiv.dataset.lastMessageId = message.id;
+
+        if (
+          message.User !== email &&
+          (!lastReadMessage || message.id > lastReadMessage)
+        ) {
+          adjacentMessageDiv.classList.add("unread");
+        }
+        const mentions = messageContent.querySelectorAll(".mention");
+        mentions.forEach((mention) => {
+          if (
+            mention.dataset.email === email ||
+            mention.dataset.email === "Everyone"
+          ) {
+            mention.classList.add("highlight");
+          }
+        });
+        adjacentMessageDiv.appendChild(messageContent);
+      } else {
+        const messageDiv = document.createElement("div");
+        messageDiv.classList.add("message");
+        if (message.User === "w.n.lazypanda5050@gmail.com") {
+          messageDiv.classList.add("winston");
+          if (email === "w.n.lazypanda5050@gmail.com") {
+            messageDiv.classList.add("sent");
+          } else {
+            messageDiv.classList.add("received");
+            if (!lastReadMessage || message.id > lastReadMessage) {
+              messageDiv.classList.add("unread");
+            }
+          }
+        } else if (Object.values(BOT_USERS).includes(message.User)) {
+          messageDiv.classList.add("bot");
+          if (!lastReadMessage || message.id > lastReadMessage) {
+            messageDiv.classList.add("unread");
+          }
+        } else if (message.User === email) {
+          messageDiv.classList.add("sent");
+        } else if (message.User === "[SYSTEM]") {
+          messageDiv.classList.add("system");
+          if (!lastReadMessage || message.id > lastReadMessage) {
+            messageDiv.classList.add("unread");
+          }
+        } else {
+          messageDiv.classList.add("received");
+          if (!lastReadMessage || message.id > lastReadMessage) {
+            messageDiv.classList.add("unread");
+          }
+        }
+
+        messageDiv.style.marginTop = "10px";
+        messageDiv.dataset.messageId = message.id;
+        messageDiv.dataset.user = username;
+        messageDiv.dataset.date = messageDate;
+        messageDiv.dataset.lastMessageId = message.id;
+
+        const headerInfo = document.createElement("p");
+        headerInfo.className = "send-info";
+        headerInfo.textContent = `${username} ${formatDate(message.Date)}`;
+        messageDiv.appendChild(headerInfo);
+
+        getUsernameFromEmail(username).then((displayName) => {
+          if (displayName && displayName !== username) {
+            headerInfo.textContent = `${displayName} (${username}) ${formatDate(message.Date)}`;
+          }
+        });
+
+        const messageContent = document.createElement("p");
+        messageContent.innerHTML = message.Message;
+        messageContent.style.marginTop = "5px";
+
+        const mentions = messageContent.querySelectorAll(".mention");
+        mentions.forEach((mention) => {
+          if (
+            mention.dataset.email === email ||
+            mention.dataset.email === "Everyone"
+          ) {
+            mention.classList.add("highlight");
+          }
+        });
+        messageDiv.appendChild(messageContent);
+
+        if (prepend) {
+          messagesDiv.insertBefore(messageDiv, messagesDiv.firstChild);
+        } else {
+          messagesDiv.appendChild(messageDiv);
+        }
+
+        adjacentMessageDiv = messageDiv;
+      }
+
+      if (!prepend && wasNearBottom) {
+        requestAnimationFrame(() => {
+          messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        });
+      }
+
+      appendedMessages.add(message.id);
+      return adjacentMessageDiv;
+    }
+
+    currentDMListener = onValue(dmRef, async (snapshot) => {
+      const messages = snapshot.val();
+      if (messages && currentDMKey === pairKey) {
+        const sortedMessages = Object.keys(messages)
+          .map((messageId) => ({
+            id: messageId,
+            ...messages[messageId],
+          }))
+          .sort((a, b) => new Date(a.Date) - new Date(b.Date));
+
+        loadedMessages = sortedMessages;
+
+        if (initialLoad) {
+          messagesDiv.innerHTML = "";
+          appendedMessages.clear();
+
+          const recentMessages = sortedMessages.slice(-MESSAGES_PER_LOAD);
+
+          for (const message of recentMessages) {
+            await appendSingleMessage(message, false);
+          }
+
+          initialLoad = false;
+          document.getElementById("messages").scrollTop = 2000000;
+          setTimeout(async () => {
+            await scrollToFirstUnread(pairKey);
+          }, 100);
+        } else {
+          const lastDisplayedMessage = Array.from(messagesDiv.children)
+            .filter((el) => el.dataset.messageId)
+            .pop();
+
+          if (lastDisplayedMessage) {
+            const lastMessageId = lastDisplayedMessage.dataset.lastMessageId;
+            const lastMessageIndex = sortedMessages.findIndex(
+              (msg) => msg.id === lastMessageId,
+            );
+
+            if (lastMessageIndex !== -1) {
+              const newMessages = sortedMessages.slice(lastMessageIndex + 1);
+              for (const message of newMessages) {
+                await appendSingleMessage(message, false);
+              }
+
+              const wasNearBottom =
+                messagesDiv.scrollHeight -
+                  messagesDiv.scrollTop -
+                  messagesDiv.clientHeight <=
+                20;
+              if (wasNearBottom) {
+                requestAnimationFrame(() => {
+                  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                });
+              }
+            }
+          }
+        }
+      }
+    });
   }
 
   async function updateUnreadCount(chatName) {
