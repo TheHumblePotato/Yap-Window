@@ -616,7 +616,7 @@
           }
 
           // Track unread messages
-          const userRef = ref(database, `users/${myKey}/read_status`);
+          const userRef = ref(database, `Accounts/${myKey}/readDMs`);
           get(userRef).then((userSnapshot) => {
             const readStatus = userSnapshot.val() || {};
             console.log("Read status:", readStatus);
