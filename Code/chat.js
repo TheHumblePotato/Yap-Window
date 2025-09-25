@@ -447,7 +447,7 @@
     if (!a || !b) return "";
     const safe = (x) => x.replace(/\./g, "*");
     const arr = [safe(a), safe(b)].sort();
-    return `${arr[0]},${arr[1]}`;
+    return `${arr[0]}_${arr[1]}`; // Using underscore instead of comma as separator
   }
 
   function isDMActive() {
