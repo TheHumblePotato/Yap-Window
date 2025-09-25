@@ -731,7 +731,7 @@
         alert("Please pick a recipient");
         return;
       }
-      const to = chosen.textContent.replace(/×$/, "").trim();
+      const to = chosen.textContent.replace(/\s*×\s*$/, "").trim();
       console.log("Recipient email:", to);
       const pairKey = buildPairKey(email, to);
       console.log("Pair key:", pairKey);
