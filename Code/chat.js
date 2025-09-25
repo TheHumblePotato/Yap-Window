@@ -551,17 +551,58 @@
       const myKey = email.replace(/\./g, "*");
       console.log("Populating DM list for user:", myKey);
       const dmsRef = ref(database, `dms`);
-      onValue(dmsRef, (snapshot) => {
+      
+      // Use once() instead of onValue() to load DMs only once on page load
+      // This prevents duplicate entries when creating new DMs
+      get(dmsRef).then((snapshot) => {
         const all = snapshot.val() || {};
         console.log("All DMs:", all);
-        const entries = Object.keys(all).filter((pair) => pair.includes(myKey));
+        
+        // Filter DMs where the current user is a participant
+        const entries = Object.keys(all).filter(pairKey => {
+          // Check if this DM has the current user as a participant
+          if (!all[pairKey] || !all[pairKey].__meta__ || !all[pairKey].__meta__.participants) {
+            return false;
+          }
+          return all[pairKey].__meta__.participants[myKey] === true;
+        });
+        
         console.log("User's DM entries:", entries);
         dmList.innerHTML = "";
+        
+        // Add a header for the DM section
+        const dmHeader = document.createElement("div");
+        dmHeader.className = "dm-section-header";
+        dmHeader.textContent = "Direct Messages";
+        dmHeader.style.fontWeight = "bold";
+        dmHeader.style.marginBottom = "5px";
+        dmHeader.style.marginTop = "5px";
+        dmHeader.style.fontSize = "14px";
+        dmList.appendChild(dmHeader);
+        
+        if (entries.length === 0) {
+          const noDmsMsg = document.createElement("div");
+          noDmsMsg.className = "no-dms-message";
+          noDmsMsg.textContent = "No direct messages yet";
+          noDmsMsg.style.fontSize = "12px";
+          noDmsMsg.style.fontStyle = "italic";
+          noDmsMsg.style.color = "#888";
+          noDmsMsg.style.padding = "5px";
+          dmList.appendChild(noDmsMsg);
+        }
+        
         entries.forEach((pairKey) => {
           const dmEl = document.createElement("div");
           dmEl.className = "dm";
-          const [a, b] = pairKey.split(",");
-          const other = a === myKey ? b : a;
+          dmEl.style.padding = "8px";
+          dmEl.style.margin = "2px 0";
+          dmEl.style.borderRadius = "4px";
+          dmEl.style.cursor = "pointer";
+          dmEl.style.transition = "background-color 0.2s";
+          
+          // Split by comma or underscore (supporting both old and new format)
+          const parts = pairKey.includes(",") ? pairKey.split(",") : pairKey.split("_");
+          const other = parts[0] === myKey ? parts[1] : parts[0];
           const otherEmail = other.replace(/\*/g, ".");
           
           // Get username for display
@@ -578,11 +619,14 @@
             this.classList.add("selected");
             openDM(pairKey);
           };
+          
           dmList.appendChild(dmEl);
         });
+      }).catch(error => {
+        console.error("Error loading DMs:", error);
       });
-    } catch (e) {
-      console.error("Error populating DM list:", e);
+    } catch (error) {
+      console.error("Error in populateDMList:", error);
     }
   }
 
