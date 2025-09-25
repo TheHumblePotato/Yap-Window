@@ -503,6 +503,7 @@
 
         sidebar.appendChild(chatElement);
         chatElements.set(chatName, chatElement);
+
       }
     }
 
@@ -551,16 +552,8 @@
       const myKey = email.replace(/\./g, "*");
       console.log("Populating DM list for user:", myKey);
       
-      // Add a header for the DM section
+      // Clear the list without adding a header
       dmList.innerHTML = "";
-      const dmHeader = document.createElement("div");
-      dmHeader.className = "dm-section-header";
-      dmHeader.textContent = "Direct Messages";
-      dmHeader.style.fontWeight = "bold";
-      dmHeader.style.marginBottom = "5px";
-      dmHeader.style.marginTop = "5px";
-      dmHeader.style.fontSize = "14px";
-      dmList.appendChild(dmHeader);
       
       // Show loading message initially
       const loadingMsg = document.createElement("div");
@@ -577,7 +570,6 @@
       onValue(dmsRef, (snapshot) => {
         try {
           const all = snapshot.val() || {};
-          console.log("All DMs:", all);
           
           // Filter DMs where the current user is a participant
           const entries = Object.keys(all).filter(pairKey => {
@@ -588,12 +580,8 @@
             return all[pairKey].__meta__.participants[myKey] === true;
           });
           
-          console.log("User's DM entries:", entries);
-          
-          // Clear the list but keep the header
-          while (dmList.childNodes.length > 1) {
-            dmList.removeChild(dmList.lastChild);
-          }
+          // Clear the list
+          dmList.innerHTML = "";
           
           if (entries.length === 0) {
             const noDmsMsg = document.createElement("div");
@@ -604,38 +592,100 @@
             noDmsMsg.style.color = "#888";
             noDmsMsg.style.padding = "5px";
             dmList.appendChild(noDmsMsg);
+            return;
           }
           
-          entries.forEach((pairKey) => {
-            const dmEl = document.createElement("div");
-            dmEl.className = "dm";
-            dmEl.style.padding = "8px";
-            dmEl.style.margin = "2px 0";
-            dmEl.style.borderRadius = "4px";
-            dmEl.style.cursor = "pointer";
-            dmEl.style.transition = "background-color 0.2s";
+          // Track unread messages
+          const userRef = ref(database, `users/${myKey}/read_status`);
+          get(userRef).then((userSnapshot) => {
+            const readStatus = userSnapshot.val() || {};
             
-            // Split by comma or underscore (supporting both old and new format)
-            const parts = pairKey.includes(",") ? pairKey.split(",") : pairKey.split("_");
-            const other = parts[0] === myKey ? parts[1] : parts[0];
-            const otherEmail = other.replace(/\*/g, ".");
-            
-            // Get username for display
-            getUsernameFromEmail(otherEmail).then(username => {
-              dmEl.textContent = username || otherEmail;
-              dmEl.title = otherEmail;
+            entries.forEach((pairKey) => {
+              const dmEl = document.createElement("div");
+              dmEl.className = "dm";
+              dmEl.style.padding = "8px";
+              dmEl.style.margin = "2px 0";
+              dmEl.style.borderRadius = "4px";
+              dmEl.style.cursor = "pointer";
+              dmEl.style.transition = "background-color 0.2s";
+              dmEl.setAttribute("data-dm-key", pairKey);
+              
+              // Split by comma or underscore (supporting both old and new format)
+              const parts = pairKey.includes(",") ? pairKey.split(",") : pairKey.split("_");
+              const other = parts[0] === myKey ? parts[1] : parts[0];
+              const otherEmail = other.replace(/\*/g, ".");
+              
+              // Create container for name and unread indicator
+              const nameContainer = document.createElement("div");
+              nameContainer.style.display = "flex";
+              nameContainer.style.justifyContent = "space-between";
+              nameContainer.style.alignItems = "center";
+              nameContainer.style.width = "100%";
+              
+              const nameSpan = document.createElement("span");
+              nameContainer.appendChild(nameSpan);
+              
+              // Check for unread messages
+              const dmReadStatus = readStatus[pairKey] || {};
+              const lastReadId = dmReadStatus.lastReadId || "";
+              
+              // Get the latest message in this DM
+              const dmRef = ref(database, `dms/${pairKey}`);
+              get(dmRef).then((dmSnapshot) => {
+                const dmData = dmSnapshot.val() || {};
+                const messageIds = Object.keys(dmData).filter(k => k !== "__meta__");
+                
+                if (messageIds.length > 0) {
+                  // Sort by timestamp
+                  messageIds.sort((a, b) => {
+                    const timeA = dmData[a].Date ? new Date(dmData[a].Date).getTime() : 0;
+                    const timeB = dmData[b].Date ? new Date(dmData[b].Date).getTime() : 0;
+                    return timeA - timeB;
+                  });
+                  
+                  const latestId = messageIds[messageIds.length - 1];
+                  const latestMsg = dmData[latestId];
+                  
+                  // Check if there are unread messages
+                  if (latestId !== lastReadId && latestMsg.User !== email) {
+                    const unreadIndicator = document.createElement("div");
+                    unreadIndicator.className = "unread-indicator";
+                    unreadIndicator.style.width = "10px";
+                    unreadIndicator.style.height = "10px";
+                    unreadIndicator.style.borderRadius = "50%";
+                    unreadIndicator.style.backgroundColor = "#f44336";
+                    unreadIndicator.style.marginLeft = "5px";
+                    nameContainer.appendChild(unreadIndicator);
+                  }
+                }
+              });
+              
+              // Get username for display
+              getUsernameFromEmail(otherEmail).then(username => {
+                nameSpan.textContent = username || otherEmail;
+                dmEl.title = otherEmail;
+              });
+              
+              dmEl.appendChild(nameContainer);
+              
+              dmEl.onclick = function () {
+                console.log("Opening DM:", pairKey);
+                // Deselect all channels and DMs
+                document.querySelectorAll(".server").forEach((s) => s.classList.remove("selected"));
+                document.querySelectorAll(".dm").forEach((d) => d.classList.remove("selected"));
+                this.classList.add("selected");
+                
+                // Remove unread indicator when opening
+                const indicator = this.querySelector(".unread-indicator");
+                if (indicator) {
+                  indicator.remove();
+                }
+                
+                openDM(pairKey);
+              };
+              
+              dmList.appendChild(dmEl);
             });
-            
-            dmEl.onclick = function () {
-              console.log("Opening DM:", pairKey);
-              // Deselect all channels and DMs
-              document.querySelectorAll(".server").forEach((s) => s.classList.remove("selected"));
-              document.querySelectorAll(".dm").forEach((d) => d.classList.remove("selected"));
-              this.classList.add("selected");
-              openDM(pairKey);
-            };
-            
-            dmList.appendChild(dmEl);
           });
         } catch (innerError) {
           console.error("Error processing DMs:", innerError);
@@ -643,9 +693,7 @@
       }, (error) => {
         console.error("Error loading DMs:", error);
         // Show error message in the DM list
-        while (dmList.childNodes.length > 1) {
-          dmList.removeChild(dmList.lastChild);
-        }
+        dmList.innerHTML = "";
         const errorMsg = document.createElement("div");
         errorMsg.className = "error-dms-message";
         errorMsg.textContent = "Could not load DMs";
@@ -835,12 +883,34 @@
     const me = email.replace(/\./g, "*");
     if (!pairKey.includes(me)) return; // client-side guard: only allow own DMs
     currentDMKey = pairKey;
+    
     // Deselect channels and other DMs
     document.querySelectorAll(".server").forEach((s) => s.classList.remove("selected"));
     document.querySelectorAll(".dm").forEach((d) => d.classList.remove("selected"));
+    
+    // Select the current DM in sidebar
+    const dmElement = document.querySelector(`.dm[data-dm-key="${pairKey}"]`);
+    if (dmElement) {
+      dmElement.classList.add("selected");
+    }
+    
+    // Update header to show DM recipient
+    const parts = pairKey.includes(",") ? pairKey.split(",") : pairKey.split("_");
+    const otherKey = parts[0] === me ? parts[1] : parts[0];
+    const otherEmail = otherKey.replace(/\*/g, ".");
+    
+    // Update channel name display
+    const channelNameDisplay = document.getElementById("channel-name");
+    if (channelNameDisplay) {
+      getUsernameFromEmail(otherEmail).then(username => {
+        channelNameDisplay.textContent = username || otherEmail;
+      });
+    }
+    
     // Clear messages
     const messagesDiv = document.getElementById("messages");
     messagesDiv.innerHTML = "";
+    
     // Stop prior listeners
     if (currentChatListener) { currentChatListener(); currentChatListener = null; }
     if (currentChatTypingListener) { currentChatTypingListener(); currentChatTypingListener = null; }
@@ -854,49 +924,110 @@
     if (messages) {
       const ids = Object.keys(messages).filter((k)=>k!=="__meta__").sort();
       const latest = ids[ids.length - 1];
-      if (latest) await markMessagesAsRead(pairKey, latest, true);
+      if (latest) {
+        await markMessagesAsRead(pairKey, latest, true);
+        
+        // Remove unread indicator from sidebar
+        if (dmElement) {
+          const indicator = dmElement.querySelector(".unread-indicator");
+          if (indicator) {
+            indicator.remove();
+          }
+        }
+      }
     }
 
-    // Listen for messages
+    // Keep track of rendered messages to avoid duplicates
+    const renderedMessageIds = new Set();
+    
+    // Function to render a single message
+    const renderMessage = async (id, msg) => {
+      if (renderedMessageIds.has(id)) return; // Skip if already rendered
+      renderedMessageIds.add(id);
+      
+      const div = document.createElement("div");
+      div.className = "message " + (msg.User === email ? "sent" : "received");
+      div.setAttribute("data-message-id", id);
+      div.setAttribute("data-user", msg.User);
+      
+      // Get username for display
+      const username = await getUsernameFromEmail(msg.User);
+      const displayName = username || msg.User;
+      
+      // Format timestamp with same format as channels
+      let timestamp = "";
+      if (msg.Date) {
+        const date = new Date(msg.Date);
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        
+        if (date.toDateString() === today.toDateString()) {
+          timestamp = `Today at ${date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+        } else if (date.toDateString() === yesterday.toDateString()) {
+          timestamp = `Yesterday at ${date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+        } else {
+          timestamp = `${date.toLocaleDateString()} ${date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+        }
+      }
+      
+      // Create message structure like channel messages
+      const headerInfo = document.createElement("p");
+      headerInfo.className = "send-info";
+      headerInfo.textContent = `${displayName} • ${timestamp}`;
+      
+      const messageContent = document.createElement("p");
+      messageContent.innerHTML = msg.Message || "";
+      
+      div.appendChild(headerInfo);
+      div.appendChild(messageContent);
+      messagesDiv.appendChild(div);
+      
+      return div;
+    };
+
+    // Listen for new messages only
+    let initialLoad = true;
+    let lastMessageKey = null;
+    
     currentDMListener = onValue(dmRef, async (snapshot) => {
       if (!isDMActive() || currentDMKey !== pairKey) return;
       const data = snapshot.val() || {};
       const entries = Object.entries(data).filter(([k])=>k!=="__meta__");
       
-      // Sort by timestamp, not by ID string
+      // Sort by timestamp
       entries.sort(([a, msgA], [b, msgB]) => {
         const timeA = msgA.Date ? new Date(msgA.Date).getTime() : 0;
         const timeB = msgB.Date ? new Date(msgB.Date).getTime() : 0;
         return timeA - timeB;
       });
       
-      messagesDiv.innerHTML = "";
-      for (const [id, msg] of entries) {
-        const div = document.createElement("div");
-        div.className = "message " + (msg.User === email ? "sent" : "received");
-        div.setAttribute("data-message-id", id);
-        div.setAttribute("data-user", msg.User);
+      if (initialLoad) {
+        // First load - render all messages
+        messagesDiv.innerHTML = "";
+        renderedMessageIds.clear();
         
-        // Get username for display
-        const username = await getUsernameFromEmail(msg.User);
-        const displayName = username || msg.User;
-        
-        // Format timestamp
-        const timestamp = msg.Date ? new Date(msg.Date).toLocaleString() : new Date().toLocaleString();
-        
-        // Create message structure like channel messages
-        const headerInfo = document.createElement("p");
-        headerInfo.className = "send-info";
-        headerInfo.textContent = `${displayName} • ${timestamp}`;
-        
-        const messageContent = document.createElement("p");
-        messageContent.innerHTML = msg.Message || "";
-        
-        div.appendChild(headerInfo);
-        div.appendChild(messageContent);
-        messagesDiv.appendChild(div);
+        for (const [id, msg] of entries) {
+          await renderMessage(id, msg);
+          lastMessageKey = id;
+        }
+        initialLoad = false;
+      } else {
+        // Subsequent updates - only render new messages
+        for (const [id, msg] of entries) {
+          if (!renderedMessageIds.has(id)) {
+            const msgElement = await renderMessage(id, msg);
+            if (msgElement && msg.User !== email) {
+              // Mark as read if it's not from the current user
+              markMessagesAsRead(pairKey, id, false);
+            }
+            lastMessageKey = id;
+          }
+        }
       }
-      messagesDiv.scrollTop = 2000000;
+      
+      // Scroll to bottom
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
     });
 
     // Typing indicators for DM
