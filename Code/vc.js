@@ -570,67 +570,38 @@
             }
     }
 
-    // Check microphone permissions before requesting access
-    async function checkMicrophonePermissions() {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            return {
-                supported: false,
-                error: 'Your browser does not support microphone access. Please use a modern browser like Chrome, Firefox, or Safari.'
-            };
-        }
-
-        // Check if we're on HTTPS (required for getUserMedia in most browsers)
-        if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-            return {
-                supported: false,
-                error: 'Microphone access requires HTTPS. Please use a secure connection.'
-            };
-        }
-
-        try {
-            // Check permission status if available
-            if (navigator.permissions) {
-                const permission = await navigator.permissions.query({ name: 'microphone' });
-                if (permission.state === 'denied') {
-                    return {
-                        supported: true,
-                        granted: false,
-                        error: 'Microphone permission was denied. Please enable microphone access in your browser settings.'
-                    };
-                }
-            }
-
-            return { supported: true, granted: true };
-        } catch (error) {
-            console.log('Permission check failed:', error);
-            return { supported: true, granted: null }; // Unknown, but we can try
-        }
-    }
-
     // Initialize voice connection and WebRTC
     async function initializeVoiceConnection(roomId) {
+        // Debug info
+        console.log('=== MICROPHONE ACCESS DEBUG ===');
+        console.log('Current URL:', window.location.href);
+        console.log('Protocol:', window.location.protocol);
+        console.log('Navigator.mediaDevices available:', !!navigator.mediaDevices);
+        console.log('getUserMedia available:', !!navigator.mediaDevices?.getUserMedia);
+        
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            console.error('getUserMedia not supported');
+            showError('Your browser does not support microphone access');
+            return;
+        }
+        
         try {
-            // First check microphone permissions and support
-            const permissionCheck = await checkMicrophonePermissions();
+            console.log('Requesting microphone access...');
             
-            if (!permissionCheck.supported) {
-                showMicrophoneError(permissionCheck.error, 'UNSUPPORTED');
-                return;
-            }
-            
-            if (permissionCheck.granted === false) {
-                showMicrophoneError(permissionCheck.error, 'DENIED');
-                return;
-            }
-
-            // Request microphone permission
+            // Simple, direct microphone request
             localStream = await navigator.mediaDevices.getUserMedia({ 
-                audio: {
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    autoGainControl: true
-                }
+                audio: true
             });
+            
+            console.log('✅ Microphone access granted!');
+            console.log('Audio tracks:', localStream.getAudioTracks().length);
+            
+            if (localStream.getAudioTracks().length === 0) {
+                console.error('No audio tracks in stream');
+                showError('No audio tracks found in microphone stream');
+                return;
+            }
+            
             isVoiceChatActive = true;
             
             // Add user to participants
@@ -645,32 +616,27 @@
             // Setup room listeners
             setupRoomListeners(roomId);
             
-            console.log('Voice connection initialized for room:', roomId);
+            console.log('✅ Voice connection initialized for room:', roomId);
+            
         } catch (error) {
-            console.error('Error initializing voice connection:', error);
+            console.error('❌ Microphone access failed:', error);
+            console.error('Error type:', error.name);
+            console.error('Error message:', error.message);
             
-            // Provide specific error messages based on the error type
-            let errorMessage = 'Failed to access microphone';
-            let errorType = 'GENERIC';
-            
-            if (error.name === 'NotAllowedError') {
-                errorMessage = 'Microphone access was denied by the user';
-                errorType = 'DENIED';
-            } else if (error.name === 'NotFoundError') {
-                errorMessage = 'No microphone was found on this device';
-                errorType = 'NOT_FOUND';
+            // Simple error message without popups
+            let errorMsg = 'Microphone access denied';
+            if (error.name === 'NotFoundError') {
+                errorMsg = 'No microphone found';
             } else if (error.name === 'NotReadableError') {
-                errorMessage = 'Microphone is already in use by another application';
-                errorType = 'IN_USE';
+                errorMsg = 'Microphone is busy';
+            } else if (error.name === 'NotAllowedError') {
+                errorMsg = 'Microphone permission denied';
             } else if (error.name === 'OverconstrainedError') {
-                errorMessage = 'Microphone constraints could not be satisfied';
-                errorType = 'CONSTRAINTS';
-            } else if (error.name === 'SecurityError') {
-                errorMessage = 'Microphone access blocked by browser security policy';
-                errorType = 'SECURITY';
+                errorMsg = 'Microphone constraints failed';
             }
             
-            showMicrophoneError(errorMessage, errorType, error);
+            console.log('User-friendly error:', errorMsg);
+            showError(errorMsg);
         }
     }
 
