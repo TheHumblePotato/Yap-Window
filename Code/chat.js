@@ -862,6 +862,20 @@
     list.innerHTML = "";
     search.value = "";
 
+    // Add error message element
+    let errorMsg = document.getElementById("dm-error-message");
+    if (!errorMsg) {
+      errorMsg = document.createElement("div");
+      errorMsg.id = "dm-error-message";
+      errorMsg.style.color = "red";
+      errorMsg.style.display = "none";
+      errorMsg.style.marginTop = "10px";
+      errorMsg.style.fontSize = "14px";
+      document.getElementById("dm-screen").appendChild(errorMsg);
+    }
+    errorMsg.style.display = "none";
+    errorMsg.textContent = "";
+
     let availableMembers = [];
 
     async function updateAvailableMembers() {
@@ -960,6 +974,8 @@
     };
 
     backBtn.onclick = () => {
+      errorMsg.style.display = "none";
+      errorMsg.textContent = "";
       document.getElementById("dm-screen").classList.add("hidden");
       chatScreen.style.display = "flex";
     };
@@ -977,7 +993,19 @@
       const pairKey = buildPairKey(email, to);
       console.log("Pair key:", pairKey);
       const threadRef = ref(database, `dms/${pairKey}`);
-      
+
+      // Clear previous error
+      errorMsg.style.display = "none";
+      errorMsg.textContent = "";
+
+      // Check if DM already exists
+      const dmSnap = await get(threadRef);
+      if (dmSnap.exists()) {
+        errorMsg.textContent = "You already have a DM with this user.";
+        errorMsg.style.display = "block";
+        return;
+      }
+
       try {
         // Create the DM thread with participants map
         const meKey = email.replace(/\./g, "*");
@@ -986,7 +1014,7 @@
         await set(threadRef, {
           __meta__: { createdAt: Date.now(), participants: { [meKey]: true, [youKey]: true } }
         });
-        
+
         document.getElementById("dm-screen").classList.add("hidden");
         chatScreen.style.display = "flex";
         await populateDMList(); // Refresh DM list
