@@ -725,13 +725,9 @@
             nameContainer.appendChild(nameSpan);
 
             // Check for unread messages
-            const dmReadStatus = readDMs[pairKey];
-            const lastReadId = dmReadStatus || "";
-
-            // Get all messages in this DM
             const dmRef = ref(database, `dms/${pairKey}`);
-            get(dmRef).then((dmSnapshot) => {
-              const dmData = dmSnapshot.val() || {};
+            onValue(dmRef, (snapshot) => {
+              const dmData = snapshot.val() || {};
               const messageIds = Object.keys(dmData).filter(k => k !== "__meta__");
 
               let unreadCount = 0;
@@ -742,6 +738,9 @@
                   const timeB = dmData[b].Date ? new Date(dmData[b].Date).getTime() : 0;
                   return timeA - timeB;
                 });
+
+                const dmReadStatus = readDMs[pairKey];
+                const lastReadId = dmReadStatus || "";
 
                 let lastReadIndex = -1;
                 messageIds.forEach((id, index) => {
@@ -760,20 +759,30 @@
 
               dmEl.setAttribute("data-unread", unreadCount);
 
+              const existingBadge = nameContainer.querySelector(".unread-badge");
               if (unreadCount > 0) {
-                const badge = document.createElement("span");
-                badge.className = "unread-badge";
-                badge.style.backgroundColor = isDark ? "#ff6b6b" : "#ff4444";
-                badge.style.color = "white";
-                badge.style.borderRadius = "10px";
-                badge.style.padding = "2px 6px";
-                badge.style.fontSize = "12px";
-                badge.style.marginLeft = "5px";
-                badge.textContent = unreadCount > 99 ? "99+" : unreadCount;
-                nameContainer.appendChild(badge);
+                if (!existingBadge) {
+                  const badge = document.createElement("span");
+                  badge.className = "unread-badge";
+                  badge.style.backgroundColor = isDark ? "#ff6b6b" : "#ff4444";
+                  badge.style.color = "white";
+                  badge.style.borderRadius = "10px";
+                  badge.style.padding = "2px 6px";
+                  badge.style.fontSize = "12px";
+                  badge.style.marginLeft = "5px";
+                  badge.textContent = unreadCount > 99 ? "99+" : unreadCount;
+                  nameContainer.appendChild(badge);
+                } else {
+                  existingBadge.textContent = unreadCount > 99 ? "99+" : unreadCount;
+                  existingBadge.style.display = "inline";
+                }
+              } else {
+                if (existingBadge) {
+                  existingBadge.style.display = "none";
+                }
               }
-            }).catch((error) => {
-              console.error("Error getting DM data for", pairKey, error);
+            }, (error) => {
+              console.error("Error listening to DM data for", pairKey, error);
             });
 
             // Get username for display
