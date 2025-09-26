@@ -170,6 +170,22 @@
     );
     const snapshot = await get(readMessagesRef);
     readMessages = snapshot.val() || {};
+
+    // Also load DM read status
+    const readDMsRef = ref(
+      database,
+      `Accounts/${email.replace(/\./g, "*")}/readDMs`,
+    );
+    const dmSnapshot = await get(readDMsRef);
+    const readDMs = dmSnapshot.val() || {};
+    for (const [dmKey, readData] of Object.entries(readDMs)) {
+      if (typeof readData === 'object' && readData.lastReadId) {
+        readMessages[dmKey] = readData.lastReadId;
+      } else if (typeof readData === 'string') {
+        readMessages[dmKey] = readData;
+      }
+    }
+
     return readMessages;
   }
 
