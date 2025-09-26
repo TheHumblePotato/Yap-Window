@@ -1442,6 +1442,7 @@
       const messages = snapshot.val();
       if (messages && currentDMKey === pairKey) {
         const sortedMessages = Object.keys(messages)
+          .filter(k => k !== "__meta__")
           .map((messageId) => ({
             id: messageId,
             ...messages[messageId],
