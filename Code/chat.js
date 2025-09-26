@@ -787,10 +787,10 @@
                 document.querySelectorAll(".dm").forEach((d) => d.classList.remove("selected"));
                 this.classList.add("selected");
 
-                // Remove unread indicator when opening
-                const indicator = this.querySelector(".unread-indicator");
-                if (indicator) {
-                  indicator.remove();
+                // Remove unread badge when opening
+                const badge = this.querySelector(".unread-badge");
+                if (badge) {
+                  badge.remove();
                 }
 
                 openDM(pairKey);
@@ -1091,11 +1091,11 @@
       if (latest) {
         await markMessagesAsRead(pairKey, latest, true);
 
-        // Remove unread indicator from sidebar
+        // Remove unread badge from sidebar
         if (dmElement) {
-          const indicator = dmElement.querySelector(".unread-indicator");
-          if (indicator) {
-            indicator.remove();
+          const badge = dmElement.querySelector(".unread-badge");
+          if (badge) {
+            badge.remove();
           }
         }
       }
