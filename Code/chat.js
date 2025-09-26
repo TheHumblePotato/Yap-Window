@@ -573,7 +573,36 @@
     chatElements.forEach((element, chatName) => {
       const chatRef = ref(database, `Chats/${chatName}`);
       onValue(chatRef, async (snapshot) => {
-        await updateUnreadCount(chatName, false);
+        const messages = snapshot.val() || {};
+        const lastReadMessage = readMessages[chatName] || "";
+        let unreadCount = 0;
+
+        const sortedMessages = Object.entries(messages).sort(
+          ([, a], [, b]) => new Date(a.Date) - new Date(b.Date),
+        );
+
+        let lastReadIndex = -1;
+        sortedMessages.forEach(([messageId, message], index) => {
+          if (messageId === lastReadMessage) {
+            lastReadIndex = index;
+          }
+        });
+
+        sortedMessages.forEach(([messageId, message], index) => {
+          if (message.User !== email && index > lastReadIndex) {
+            unreadCount++;
+          }
+        });
+
+        const badge = element.querySelector(".unread-badge");
+        element.setAttribute("data-unread", unreadCount);
+
+        if (unreadCount > 0) {
+          badge.textContent = unreadCount > 99 ? "99+" : unreadCount;
+          badge.style.display = "inline";
+        } else {
+          badge.style.display = "none";
+        }
       });
     });
 
@@ -626,7 +655,7 @@
         dmListListener();
         dmListListener = null;
       }
-      dmListListener = onValue(dmsRef, async (snapshot) => {
+      dmListListener = onValue(dmsRef, (snapshot) => {
         try {
           const all = snapshot.val() || {};
           console.log("Fetched data:", all);
@@ -670,7 +699,7 @@
             isInitialLoad = false;
           }
 
-          for (const pairKey of entries) {
+          entries.forEach((pairKey) => {
             const dmEl = document.createElement("div");
             dmEl.className = "dm";
             dmEl.style.padding = "8px";
@@ -700,11 +729,52 @@
             const lastReadId = dmReadStatus || "";
 
             // Get all messages in this DM
-            try {
-              await updateUnreadCount(pairKey, true);
-            } catch (error) {
-              console.error("Error updating unread count for DM", pairKey, error);
-            }
+            const dmRef = ref(database, `dms/${pairKey}`);
+            get(dmRef).then((dmSnapshot) => {
+              const dmData = dmSnapshot.val() || {};
+              const messageIds = Object.keys(dmData).filter(k => k !== "__meta__");
+
+              let unreadCount = 0;
+              if (messageIds.length > 0) {
+                // Sort by timestamp
+                messageIds.sort((a, b) => {
+                  const timeA = dmData[a].Date ? new Date(dmData[a].Date).getTime() : 0;
+                  const timeB = dmData[b].Date ? new Date(dmData[b].Date).getTime() : 0;
+                  return timeA - timeB;
+                });
+
+                let lastReadIndex = -1;
+                messageIds.forEach((id, index) => {
+                  if (id === lastReadId) {
+                    lastReadIndex = index;
+                  }
+                });
+
+                messageIds.forEach((id, index) => {
+                  const msg = dmData[id];
+                  if (msg.User !== email && index > lastReadIndex) {
+                    unreadCount++;
+                  }
+                });
+              }
+
+              dmEl.setAttribute("data-unread", unreadCount);
+
+              if (unreadCount > 0) {
+                const badge = document.createElement("span");
+                badge.className = "unread-badge";
+                badge.style.backgroundColor = isDark ? "#ff6b6b" : "#ff4444";
+                badge.style.color = "white";
+                badge.style.borderRadius = "10px";
+                badge.style.padding = "2px 6px";
+                badge.style.fontSize = "12px";
+                badge.style.marginLeft = "5px";
+                badge.textContent = unreadCount > 99 ? "99+" : unreadCount;
+                nameContainer.appendChild(badge);
+              }
+            }).catch((error) => {
+              console.error("Error getting DM data for", pairKey, error);
+            });
 
             // Get username for display
             getUsernameFromEmail(otherEmail).then(username => {
@@ -1470,16 +1540,14 @@
     });
   }
 
-  async function updateUnreadCount(chatName, isDM = false) {
-    const messagesPath = isDM ? `dms/${chatName}` : `Chats/${chatName}`;
-    const readPath = isDM ? "readDMs" : "readMessages";
-    const chatRef = ref(database, messagesPath);
+  async function updateUnreadCount(chatName) {
+    const chatRef = ref(database, `Chats/${chatName}`);
     const snapshot = await get(chatRef);
     const messages = snapshot.val() || {};
 
     const accountRef = ref(
       database,
-      `Accounts/${email.replace(/\./g, "*")}/${readPath}/${chatName}`,
+      `Accounts/${email.replace(/\./g, "*")}/readMessages/${chatName}`,
     );
     const lastReadSnapshot = await get(accountRef);
     const lastReadMessage = lastReadSnapshot.val() || "";
@@ -1502,29 +1570,12 @@
       }
     });
 
-    let chatElement;
-    if (isDM) {
-      chatElement = document.querySelector(`.dm[data-dm-key="${chatName}"]`);
-    } else {
-      chatElement = Array.from(document.querySelectorAll(".server")).find(
-        (el) => el.textContent.trim().includes(chatName.trim()),
-      );
-    }
+    const chatElement = Array.from(document.querySelectorAll(".server")).find(
+      (el) => el.textContent.trim().includes(chatName.trim()),
+    );
 
     if (chatElement) {
-      let badge = chatElement.querySelector(".unread-badge");
-      if (!badge) {
-        badge = document.createElement("span");
-        badge.className = "unread-badge";
-        badge.style.display = "none";
-        badge.style.backgroundColor = isDark ? "#ff6b6b" : "#ff4444";
-        badge.style.color = "white";
-        badge.style.borderRadius = "10px";
-        badge.style.padding = "2px 6px";
-        badge.style.fontSize = "12px";
-        badge.style.marginLeft = "5px";
-        chatElement.appendChild(badge);
-      }
+      const badge = chatElement.querySelector(".unread-badge");
       chatElement.setAttribute("data-unread", unreadCount);
 
       if (unreadCount > 0) {
@@ -1533,7 +1584,12 @@
       } else {
         badge.style.display = "none";
       }
-    }
+
+      if (badge) {
+        badge.style.backgroundColor = isDark ? "#ff6b6b" : "#ff4444";
+        badge.style.color = "white";
+      }
+  }
 
     updateReadAllStatus();
   }
@@ -2307,7 +2363,7 @@
       }
     });
     document.getElementById("bookmarklet-gui").scrollTop = 0;
-    await updateUnreadCount(chatName, isDM);
+    if (!isDM) await updateUnreadCount(chatName);
   }
   function createSnakeGame() {
     const temp_email =
