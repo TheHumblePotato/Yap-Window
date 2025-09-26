@@ -175,6 +175,7 @@
 
   function updateReadAllStatus() {
     const allChats = document.querySelectorAll(".server");
+    const allDMs = document.querySelectorAll(".dm");
     readAll = true;
 
     allChats.forEach((chat) => {
@@ -183,6 +184,14 @@
         readAll = false;
       }
     });
+
+    allDMs.forEach((dm) => {
+      const unreadCount = parseInt(dm.getAttribute("data-unread") || "0");
+      if (unreadCount > 0) {
+        readAll = false;
+      }
+    });
+
     updateFavicon();
   }
 
@@ -718,36 +727,42 @@
 
               // Check for unread messages
               const dmReadStatus = readStatus[pairKey] || {};
-              const lastReadId = dmReadStatus.lastReadId || "";
+              let lastReadId;
+              if (typeof dmReadStatus === 'object' && dmReadStatus.lastReadId) {
+                lastReadId = dmReadStatus.lastReadId;
+              } else if (typeof dmReadStatus === 'string') {
+                lastReadId = dmReadStatus;
+              } else {
+                lastReadId = "";
+              }
 
-              // Get the latest message in this DM
+              // Get the messages in this DM
               const dmRef = ref(database, `dms/${pairKey}`);
               get(dmRef).then((dmSnapshot) => {
                 const dmData = dmSnapshot.val() || {};
                 const messageIds = Object.keys(dmData).filter(k => k !== "__meta__");
 
-                if (messageIds.length > 0) {
-                  // Sort by timestamp
-                  messageIds.sort((a, b) => {
-                    const timeA = dmData[a].Date ? new Date(dmData[a].Date).getTime() : 0;
-                    const timeB = dmData[b].Date ? new Date(dmData[b].Date).getTime() : 0;
-                    return timeA - timeB;
-                  });
-
-                  const latestId = messageIds[messageIds.length - 1];
-                  const latestMsg = dmData[latestId];
-
-                  // Check if there are unread messages
-                  if (latestId !== lastReadId && latestMsg.User !== email) {
-                    const unreadIndicator = document.createElement("div");
-                    unreadIndicator.className = "unread-indicator";
-                    unreadIndicator.style.width = "10px";
-                    unreadIndicator.style.height = "10px";
-                    unreadIndicator.style.borderRadius = "50%";
-                    unreadIndicator.style.backgroundColor = "#f44336";
-                    unreadIndicator.style.marginLeft = "5px";
-                    nameContainer.appendChild(unreadIndicator);
+                let unreadCount = 0;
+                messageIds.forEach(id => {
+                  if (id > lastReadId && dmData[id].User !== email) {
+                    unreadCount++;
                   }
+                });
+
+                dmEl.setAttribute("data-unread", unreadCount);
+
+                if (unreadCount > 0) {
+                  const badge = document.createElement("span");
+                  badge.className = "unread-badge";
+                  badge.style.display = "inline";
+                  badge.style.backgroundColor = isDark ? "#ff6b6b" : "#ff4444";
+                  badge.style.color = "white";
+                  badge.style.borderRadius = "10px";
+                  badge.style.padding = "2px 6px";
+                  badge.style.fontSize = "12px";
+                  badge.style.marginLeft = "5px";
+                  badge.textContent = unreadCount > 99 ? "99+" : unreadCount;
+                  nameContainer.appendChild(badge);
                 }
               }).catch((error) => {
                 console.error("Error getting DM data for", pairKey, error);
@@ -2344,7 +2359,11 @@
 
     const readPath = isDM ? `Accounts/${email.replace(/\./g, "*")}/readDMs/${chatName}` : `Accounts/${email.replace(/\./g, "*")}/readMessages/${chatName}`;
     const readMessagesRef = ref(database, readPath);
-    await set(readMessagesRef, lastMessageId);
+    if (isDM) {
+      await set(readMessagesRef, {lastReadId: lastMessageId});
+    } else {
+      await set(readMessagesRef, lastMessageId);
+    }
 
     document.querySelectorAll(".message").forEach((msg) => {
       const msgId = msg.dataset.lastMessageId;
@@ -7354,6 +7373,36 @@
           }
         }
       }
+
+      // Mark DMs as read
+      const myKey = email.replace(/\./g, "*");
+      const dmsRef = ref(database, "dms");
+      const dmsSnapshot = await get(dmsRef);
+      const allDMs = dmsSnapshot.val() || {};
+
+      for (const pairKey in allDMs) {
+        if (allDMs[pairKey].__meta__ && allDMs[pairKey].__meta__.participants && allDMs[pairKey].__meta__.participants[myKey]) {
+          const dmRef = ref(database, `dms/${pairKey}`);
+          const dmSnapshot = await get(dmRef);
+          const messages = dmSnapshot.val();
+          if (messages) {
+            const ids = Object.keys(messages).filter(k => k !== "__meta__").sort();
+            const latest = ids[ids.length - 1];
+            if (latest) {
+              const readDMRef = ref(database, `Accounts/${myKey}/readDMs/${pairKey}`);
+              await set(readDMRef, {lastReadId: latest});
+            }
+          }
+        }
+      }
+
+      // Remove all DM badges
+      document.querySelectorAll(".dm .unread-badge").forEach((badge) => {
+        badge.remove();
+      });
+      document.querySelectorAll(".dm").forEach((dm) => {
+        dm.setAttribute("data-unread", "0");
+      });
 
       updateReadAllStatus();
       updateFavicon();
