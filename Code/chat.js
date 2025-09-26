@@ -174,7 +174,7 @@
   }
 
   function updateReadAllStatus() {
-    const allChats = document.querySelectorAll(".server");
+    const allChats = document.querySelectorAll(".server, .dm");
     readAll = true;
 
     allChats.forEach((chat) => {
@@ -720,12 +720,13 @@
               const dmReadStatus = readStatus[pairKey] || {};
               const lastReadId = dmReadStatus.lastReadId || "";
 
-              // Get the latest message in this DM
+              // Get all messages in this DM
               const dmRef = ref(database, `dms/${pairKey}`);
               get(dmRef).then((dmSnapshot) => {
                 const dmData = dmSnapshot.val() || {};
                 const messageIds = Object.keys(dmData).filter(k => k !== "__meta__");
 
+                let unreadCount = 0;
                 if (messageIds.length > 0) {
                   // Sort by timestamp
                   messageIds.sort((a, b) => {
@@ -734,20 +735,27 @@
                     return timeA - timeB;
                   });
 
-                  const latestId = messageIds[messageIds.length - 1];
-                  const latestMsg = dmData[latestId];
+                  messageIds.forEach(id => {
+                    const msg = dmData[id];
+                    if (msg.User !== email && (!lastReadId || id > lastReadId)) {
+                      unreadCount++;
+                    }
+                  });
+                }
 
-                  // Check if there are unread messages
-                  if (latestId !== lastReadId && latestMsg.User !== email) {
-                    const unreadIndicator = document.createElement("div");
-                    unreadIndicator.className = "unread-indicator";
-                    unreadIndicator.style.width = "10px";
-                    unreadIndicator.style.height = "10px";
-                    unreadIndicator.style.borderRadius = "50%";
-                    unreadIndicator.style.backgroundColor = "#f44336";
-                    unreadIndicator.style.marginLeft = "5px";
-                    nameContainer.appendChild(unreadIndicator);
-                  }
+                dmEl.setAttribute("data-unread", unreadCount);
+
+                if (unreadCount > 0) {
+                  const badge = document.createElement("span");
+                  badge.className = "unread-badge";
+                  badge.style.backgroundColor = isDark ? "#ff6b6b" : "#ff4444";
+                  badge.style.color = "white";
+                  badge.style.borderRadius = "10px";
+                  badge.style.padding = "2px 6px";
+                  badge.style.fontSize = "12px";
+                  badge.style.marginLeft = "5px";
+                  badge.textContent = unreadCount > 99 ? "99+" : unreadCount;
+                  nameContainer.appendChild(badge);
                 }
               }).catch((error) => {
                 console.error("Error getting DM data for", pairKey, error);
@@ -771,12 +779,6 @@
                 document.querySelectorAll(".server").forEach((s) => s.classList.remove("selected"));
                 document.querySelectorAll(".dm").forEach((d) => d.classList.remove("selected"));
                 this.classList.add("selected");
-
-                // Remove unread indicator when opening
-                const indicator = this.querySelector(".unread-indicator");
-                if (indicator) {
-                  indicator.remove();
-                }
 
                 openDM(pairKey);
               };
@@ -1076,12 +1078,14 @@
       if (latest) {
         await markMessagesAsRead(pairKey, latest, true);
 
-        // Remove unread indicator from sidebar
+        // Update unread badge from sidebar
         if (dmElement) {
-          const indicator = dmElement.querySelector(".unread-indicator");
-          if (indicator) {
-            indicator.remove();
+          const badge = dmElement.querySelector(".unread-badge");
+          if (badge) {
+            badge.textContent = "0";
+            badge.style.display = "none";
           }
+          dmElement.setAttribute("data-unread", "0");
         }
       }
     }
