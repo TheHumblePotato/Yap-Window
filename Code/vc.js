@@ -6,23 +6,46 @@
     // Global voice chat state
     let isVoiceChatActive = false;
     let currentVoiceRoom = null;
+    let currentRoomId = null;
     let localStream = null;
-    let peerConnections = new Map(); // email -> RTCPeerConnection
+    let peerConnections = {}; // userId -> RTCPeerConnection
     let roomParticipants = new Set();
     let isMenuOpen = false;
+    let myId = null;
+    let isMuted = false;
 
 
     // WebRTC configuration
-    const iceServers = {
+    const rtcConfig = {
         iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' }
-        ]
+            { urls: 'stun:stun1.l.google.com:19302' },
+            {
+                urls: 'turn:numb.viagenie.ca',
+                username: 'webrtc@live.com',
+                credential: 'muazkh'
+            }
+        ],
+        iceCandidatePoolSize: 10
     };
 
     // Initialize voice chat system
     function initializeVoiceChat() {
         createVoiceChatMenu();
+        
+        // Wait for auth state to be available
+        if (typeof auth !== 'undefined' && auth.currentUser) {
+            myId = auth.currentUser.uid;
+        } else if (typeof auth !== 'undefined') {
+            // Listen for auth state changes
+            auth.onAuthStateChanged((user) => {
+                if (user) {
+                    myId = user.uid;
+                    console.log('User authenticated:', myId);
+                }
+            });
+        }
+        
         setupVoiceChatEvents();
         console.log('Voice chat system initialized');
     }
@@ -160,15 +183,30 @@
 
     // Setup event listeners for voice chat
     function setupVoiceChatEvents() {
+        // Ensure we have the user ID
+        if (typeof auth !== 'undefined' && auth.currentUser) {
+            myId = auth.currentUser.uid;
+        }
+        
         // Listen for room changes
         if (typeof database !== 'undefined') {
-            const roomsRef = ref(database, 'VoiceRooms');
+            const roomsRef = ref(database, 'rooms');
             onValue(roomsRef, (snapshot) => {
                 if (isMenuOpen) {
                     loadAvailableRooms();
                 }
             });
         }
+        
+        // Setup cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (currentRoomId && myId) {
+                const participantRef = ref(database, `rooms/${currentRoomId}/participants/${myId}`);
+                remove(participantRef).catch(error => {
+                    console.error('Error removing participant on unload:', error);
+                });
+            }
+        });
     }
 
     // Toggle voice chat menu visibility
@@ -217,7 +255,7 @@
             return;
         }
         
-        const roomsRef = ref(database, 'VoiceRooms');
+        const roomsRef = ref(database, 'rooms');
         get(roomsRef).then((snapshot) => {
             const rooms = snapshot.val();
             displayRoomsList(rooms);
@@ -238,19 +276,19 @@
             return;
         }
         
-        for (const [roomName, roomData] of Object.entries(rooms)) {
+        for (const [roomId, roomData] of Object.entries(rooms)) {
             if (!roomData.participants) continue;
             
             const participantCount = Object.keys(roomData.participants).length;
             const isPasswordProtected = roomData.password !== null && roomData.password !== '';
-            const isOwner = roomData.owner === email.replace(/\./g, "*");
-            const roomElement = createRoomListItem(roomName, participantCount, isPasswordProtected, isOwner);
+            const isOwner = roomData.createdBy === myId;
+            const roomElement = createRoomListItem(roomId, roomData.name || 'Unnamed Room', participantCount, isPasswordProtected, isOwner);
             roomsList.appendChild(roomElement);
         }
     }
 
     // Create individual room list item
-    function createRoomListItem(roomName, participantCount, isPasswordProtected, isOwner) {
+    function createRoomListItem(roomId, roomName, participantCount, isPasswordProtected, isOwner) {
         const roomElement = document.createElement('div');
         roomElement.style.cssText = `
             padding: 12px;
@@ -273,7 +311,7 @@
                         ${participantCount}/5 participants
                     </div>
                 </div>
-                <button onclick="joinVoiceRoom('${roomName}')" style="
+                <button onclick="joinVoiceRoom('${roomId}', '${roomName}')" style="
                     padding: 6px 12px;
                     background: #007bff;
                     color: white;
@@ -306,71 +344,42 @@
             return;
         }
         
-        if (typeof email === 'undefined') {
+        if (!myId) {
             showError('User not authenticated');
             return;
         }
         
-        createVoiceRoomWithRetry(roomName, password);
+        createVoiceRoom(roomName, password);
     }
 
-    // Create voice room with retry logic to handle race conditions
-    function createVoiceRoomWithRetry(roomName, password, retryCount = 0) {
-        const maxRetries = 3;
-        const retryDelay = 500; // 500ms delay between retries
-        
-        if (retryCount > maxRetries) {
-            showError('Failed to create room after multiple attempts. Please try again.');
-            return;
-        }
-        
-        // Add a small delay if this is a retry to allow deletion to complete
-        const delay = retryCount > 0 ? retryDelay : 0;
-        
-        setTimeout(() => {
-            createVoiceRoom(roomName, password, (success) => {
-                if (!success && retryCount < maxRetries) {
-                    console.log(`Room creation failed, retrying... (${retryCount + 1}/${maxRetries})`);
-                    createVoiceRoomWithRetry(roomName, password, retryCount + 1);
-                }
-            });
-        }, delay);
-    }
 
     // Core function to create voice room
-    function createVoiceRoom(roomName, password = null, callback = null) {
+    async function createVoiceRoom(roomName, password = null) {
         if (typeof database === 'undefined') {
             showError('Database not available');
-            if (callback) callback(false);
             return;
         }
+        
+        if (!myId) {
+            showError('User not authenticated');
+            return;
+        }
+        
+        try {
+            // Use push to generate unique room ID
+            const newRoomRef = push(ref(database, 'rooms'));
+            const roomId = newRoomRef.key;
         
         const roomData = {
             name: roomName,
-            owner: email.replace(/\./g, "*"),
-            password: password,
-            participants: {
-                [email.replace(/\./g, "*")]: { joined: Date.now(), status: 'connected' }
-            },
-            created: Date.now(),
-            maxParticipants: 5
-        };
-        
-        const roomRef = ref(database, `VoiceRooms/${roomName}`);
-        
-        get(roomRef).then((snapshot) => {
-            if (snapshot.exists()) {
-                console.log('Room creation failed - room exists:', roomName);
-                console.log('Existing room data:', snapshot.val());
-                showError('Room name already exists');
-                if (callback) callback(false);
-                return;
-            }
+                createdAt: Date.now(),
+                createdBy: myId,
+                password: password || null
+            };
             
-            console.log('Creating new room:', roomName);
-            return set(roomRef, roomData);
-        }).then((result) => {
-            if (result === undefined) return; // Early return from error case above
+            await set(newRoomRef, roomData);
+            
+            console.log(`Created new room: ${roomName} (${roomId})`);
             
             // Clear inputs
             const nameInput = document.getElementById('room-name-input');
@@ -379,191 +388,386 @@
             if (passwordInput) passwordInput.value = '';
             
             // Join the room
-            joinVoiceRoom(roomName, password);
-            if (callback) callback(true);
-        }).catch((error) => {
+            joinVoiceRoom(roomId, roomName, password);
+        } catch (error) {
             console.error('Error creating room:', error);
             showError('Failed to create room');
-            if (callback) callback(false);
-        });
+        }
     }
 
     // Join existing voice room
-    function joinVoiceRoom(roomName, password = null) {
+    async function joinVoiceRoom(roomId, roomName = null, password = null) {
         if (typeof database === 'undefined') {
             showError('Database not available');
             return;
         }
         
-        if (currentVoiceRoom === roomName) {
+        if (currentRoomId === roomId) {
             showError('Already in this room');
             return;
         }
         
-        const roomRef = ref(database, `VoiceRooms/${roomName}`);
+        if (!myId) {
+            showError('User not authenticated');
+            return;
+        }
         
-        get(roomRef).then((snapshot) => {
-            const room = snapshot.val();
+        try {
+            // Leave current room if in one
+            if (currentRoomId) {
+                leaveVoiceRoom();
+            }
             
-            if (!room) {
+            const roomRef = ref(database, `rooms/${roomId}`);
+            const snapshot = await get(roomRef);
+            
+            if (!snapshot.exists()) {
                 showError('Room does not exist');
                 return;
             }
             
+            const room = snapshot.val();
+            
+            // Check password if required
             if (room.password && room.password !== password) {
                 const enteredPassword = prompt('This room is password protected. Enter password:');
                 if (enteredPassword !== room.password) {
                     showError('Incorrect password');
                     return;
                 }
+                password = enteredPassword;
             }
             
-            if (Object.keys(room.participants).length >= room.maxParticipants) {
+            // Check room capacity
+            const participantsRef = ref(database, `rooms/${roomId}/participants`);
+            const participantsSnapshot = await get(participantsRef);
+            const participants = participantsSnapshot.val();
+            
+            if (participants && Object.keys(participants).length >= 5) {
                 showError('Room is full (5/5 participants)');
                 return;
             }
             
-            // Leave current room if in one
-            if (currentVoiceRoom) {
-                leaveVoiceRoom();
-            }
+            // Set room state
+            currentRoomId = roomId;
+            currentVoiceRoom = room.name || roomName || 'Unnamed Room';
             
-            // Use atomic operation to add participant - this prevents race conditions
-            const userEmail = email.replace(/\./g, "*");
-            const participantRef = ref(database, `VoiceRooms/${roomName}/participants/${userEmail}`);
-            const participantData = { joined: Date.now(), status: 'connected' };
+            // Initialize voice connection
+            await initializeVoiceConnection(roomId);
+            updateCurrentRoomDisplay(currentVoiceRoom);
             
-            return set(participantRef, participantData);
-        }).then(() => {
-            currentVoiceRoom = roomName;
-            initializeVoiceConnection(roomName);
-            updateCurrentRoomDisplay(roomName);
-        }).catch((error) => {
+        } catch (error) {
             console.error('Error joining room:', error);
-            
-            // Provide more specific error messages based on error type
-            if (error.code === 'PERMISSION_DENIED') {
-                showError('Permission denied: You may not have access to join this room. Please check if you are logged in and have the required permissions.');
-            } else if (error.message && error.message.includes('PERMISSION_DENIED')) {
-                showError('Permission denied: Database access restricted. Please ensure you are properly authenticated.');
-            } else {
                 showError('Failed to join room: ' + (error.message || 'Unknown error'));
             }
-        });
     }
 
     // Initialize voice connection and WebRTC
-    async function initializeVoiceConnection(roomName) {
+    async function initializeVoiceConnection(roomId) {
         try {
             // Request microphone permission
-            localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            isVoiceChatActive = true;
-            
-            // Setup room participants listener
-            const roomRef = ref(database, `VoiceRooms/${roomName}/participants`);
-            onValue(roomRef, (snapshot) => {
-                const participants = snapshot.val();
-                if (participants) {
-                    updateParticipantsList(participants);
-                    establishPeerConnections(participants);
+            localStream = await navigator.mediaDevices.getUserMedia({ 
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
                 }
             });
+            isVoiceChatActive = true;
             
-            console.log('Voice connection initialized for room:', roomName);
+            // Add user to participants
+            const myParticipantRef = ref(database, `rooms/${roomId}/participants/${myId}`);
+            await set(myParticipantRef, {
+                timestamp: Date.now(),
+                id: myId,
+                email: auth.currentUser ? auth.currentUser.email : 'Unknown',
+                muted: isMuted
+            });
+            
+            // Setup room listeners
+            setupRoomListeners(roomId);
+            
+            console.log('Voice connection initialized for room:', roomId);
         } catch (error) {
             console.error('Error initializing voice connection:', error);
             showError('Microphone access denied');
         }
     }
 
-    // Establish P2P connections with other participants
-    function establishPeerConnections(participants) {
-        const currentUserMasked = email.replace(/\./g, "*");
-        const participantEmailsMasked = Object.keys(participants).filter(maskedEmail => maskedEmail !== currentUserMasked);
-        const participantEmails = participantEmailsMasked.map(masked => masked.replace(/\*/g, "."));
+    // Setup room event listeners
+    function setupRoomListeners(roomId) {
+        const participantsRef = ref(database, `rooms/${roomId}/participants`);
+        const signalsRef = ref(database, `rooms/${roomId}/signals`);
         
-        // Remove connections for users who left
-        for (const [userEmail, pc] of peerConnections) {
-            const userEmailMasked = userEmail.replace(/\./g, "*");
-            if (!participants[userEmailMasked]) {
-                pc.close();
-                peerConnections.delete(userEmail);
-            }
-        }
-        
-        // Create connections for new participants
-        participantEmails.forEach(participantEmail => {
-            if (!peerConnections.has(participantEmail)) {
-                createPeerConnection(participantEmail);
+        // Listen for participant changes
+        onChildAdded(participantsRef, (snapshot) => {
+            const participant = snapshot.val();
+            if (participant.id !== myId) {
+                console.log(`New participant joined: ${participant.email} (${participant.id})`);
+                addParticipantToUI(participant);
+                
+                const peerConnection = setupPeerConnection(participant.id);
+                const shouldInitiate = myId < participant.id;
+                
+                if (shouldInitiate) {
+                    console.log(`Initiating connection with ${participant.email}`);
+                    createAndSendOffer(participant.id);
+                } else {
+                    console.log(`Waiting for offer from ${participant.email}`);
+                }
+            } else {
+                // Add self to UI
+                addParticipantToUI(participant);
             }
         });
         
-        roomParticipants = new Set(participantEmails);
+        onChildRemoved(participantsRef, (snapshot) => {
+            const participant = snapshot.val();
+            console.log(`Participant left: ${participant.email} (${participant.id})`);
+            
+            removeParticipantFromUI(participant.id);
+            
+            if (peerConnections[participant.id]) {
+                peerConnections[participant.id].close();
+                delete peerConnections[participant.id];
+            }
+        });
+        
+        // Listen for signaling messages
+        onChildAdded(signalsRef, (snapshot) => {
+            const signal = snapshot.val();
+            
+            if (signal.receiver && signal.receiver !== myId) return;
+            if (signal.sender === myId) return;
+            
+            console.log(`Received ${signal.type} signal from ${signal.sender}`);
+            
+            if (signal.type === 'offer') {
+                handleOffer(signal);
+            } else if (signal.type === 'answer') {
+                handleAnswer(signal);
+            } else if (signal.type === 'ice') {
+                handleIceCandidate(signal);
+            }
+        });
+        
+        // Listen for participant mute status changes
+        onValue(participantsRef, (snapshot) => {
+            const participants = snapshot.val();
+            if (participants) {
+                Object.values(participants).forEach((participant) => {
+                    updateParticipantMuteStatus(participant.id, participant.muted);
+                });
+            }
+        });
     }
 
-    // Create individual peer connection
-    function createPeerConnection(participantEmail) {
-        const pc = new RTCPeerConnection(iceServers);
-        peerConnections.set(participantEmail, pc);
+    // Setup peer connection
+    function setupPeerConnection(participantId) {
+        if (peerConnections[participantId]) {
+            console.log(`Closing existing peer connection with ${participantId}`);
+            peerConnections[participantId].close();
+        }
+        
+        console.log(`Creating new peer connection with ${participantId}`);
+        const peerConnection = new RTCPeerConnection(rtcConfig);
+        peerConnections[participantId] = peerConnection;
         
         // Add local stream
         if (localStream) {
-            localStream.getTracks().forEach(track => {
-                pc.addTrack(track, localStream);
+            localStream.getTracks().forEach((track) => {
+                console.log(`Adding local ${track.kind} track to peer connection with ${participantId}`);
+                peerConnection.addTrack(track, localStream);
             });
+        } else {
+            console.log('Warning: No local stream to add to peer connection');
         }
         
-        // Handle remote stream
-        pc.ontrack = (event) => {
-            console.log('Received remote stream from:', participantEmail);
-            // Play remote audio
-            const audio = new Audio();
-            audio.srcObject = event.streams[0];
-            audio.play().catch(e => console.log('Audio play failed:', e));
-        };
-        
         // Handle ICE candidates
-        pc.onicecandidate = (event) => {
-            if (event.candidate && currentVoiceRoom) {
-                const candidateRef = ref(database, `VoiceRooms/${currentVoiceRoom}/signaling/${email.replace(/\./g, "*")}/candidates`);
-                push(candidateRef, {
-                    candidate: event.candidate,
-                    target: participantEmail,
+        peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                console.log(`Sending ICE candidate to ${participantId}`);
+                push(ref(database, `rooms/${currentRoomId}/signals`), {
+                    type: 'ice',
+                    sender: myId,
+                    receiver: participantId,
+                    candidate: event.candidate.toJSON(),
                     timestamp: Date.now()
                 });
             }
         };
-        
-        // Create offer for new participants
-        pc.createOffer().then(offer => {
-            return pc.setLocalDescription(offer);
-        }).then(() => {
-            const offerRef = ref(database, `VoiceRooms/${currentVoiceRoom}/signaling/${email.replace(/\./g, "*")}/offers/${participantEmail.replace(/\./g, "*")}`);
-            return set(offerRef, pc.localDescription);
-        }).catch(error => {
-            console.error('Error creating offer:', error);
-        });
-        
-        // Listen for answers
-        const answerRef = ref(database, `VoiceRooms/${currentVoiceRoom}/signaling/${participantEmail.replace(/\./g, "*")}/answers/${email.replace(/\./g, "*")}`);
-        onValue(answerRef, (snapshot) => {
-            const answer = snapshot.val();
-            if (answer && pc.remoteDescription === null) {
-                pc.setRemoteDescription(answer).catch(e => console.error('Error setting remote description:', e));
+
+        // Handle connection state changes
+        peerConnection.oniceconnectionstatechange = () => {
+            console.log(`ICE connection state with ${participantId} changed: ${peerConnection.iceConnectionState}`);
+            
+            if (peerConnection.iceConnectionState === 'connected') {
+                console.log(`Connected to ${participantId}`);
+            } else if (peerConnection.iceConnectionState === 'failed') {
+                console.log(`Connection to ${participantId} failed`);
+                peerConnection.restartIce();
+            } else if (peerConnection.iceConnectionState === 'disconnected') {
+                console.log(`Disconnected from ${participantId}`);
             }
-        });
+        };
+        
+        peerConnection.onconnectionstatechange = () => {
+            console.log(`Connection state with ${participantId}:`, peerConnection.connectionState);
+        };
+        
+        // Handle remote stream
+        peerConnection.ontrack = (event) => {
+            console.log(`Received ${event.track.kind} track from ${participantId}`);
+            
+            const remoteStream = event.streams[0];
+            
+            // Create or get remote audio element
+            let remoteAudio = document.getElementById(`audio-${participantId}`);
+            if (!remoteAudio) {
+                remoteAudio = createAudioElement(participantId);
+            }
+            
+            remoteAudio.srcObject = remoteStream;
+            
+            remoteAudio.play()
+                .then(() => console.log(`Remote audio from ${participantId} playing`))
+                .catch((error) => {
+                    console.log(`Remote audio from ${participantId} autoplay failed: ${error.message}`);
+                    // Fallback for autoplay restrictions
+                    document.addEventListener('click', () => {
+                        remoteAudio.play().catch((e) => console.log(`Still failed to play: ${e.message}`));
+                    }, { once: true });
+                });
+        };
+        
+        return peerConnection;
     }
 
-    // Update participants list display
-    function updateParticipantsList(participants) {
+    // Create audio element for remote participants
+    function createAudioElement(userId) {
+        const audio = document.createElement('audio');
+        audio.id = `audio-${userId}`;
+        audio.autoplay = true;
+        audio.controls = false;
+        audio.muted = false;
+        
+        // Create a container for audio elements if it doesn't exist
+        let audioContainer = document.getElementById('audio-elements-container');
+        if (!audioContainer) {
+            audioContainer = document.createElement('div');
+            audioContainer.id = 'audio-elements-container';
+            audioContainer.style.display = 'none';
+            document.body.appendChild(audioContainer);
+        }
+        
+        audioContainer.appendChild(audio);
+        return audio;
+    }
+    
+    // Signaling handlers
+    async function createAndSendOffer(participantId) {
+        const peerConnection = peerConnections[participantId];
+        if (!peerConnection) {
+            console.log(`No peer connection for ${participantId}`);
+            return;
+        }
+        
+        try {
+            console.log(`Creating offer for ${participantId}...`);
+            const offer = await peerConnection.createOffer({
+                offerToReceiveAudio: true
+            });
+            
+            console.log(`Setting local description for ${participantId}...`);
+            await peerConnection.setLocalDescription(offer);
+            
+            console.log(`Sending offer to ${participantId}`);
+            push(ref(database, `rooms/${currentRoomId}/signals`), {
+                type: 'offer',
+                sender: myId,
+                receiver: participantId,
+                sdp: peerConnection.localDescription.toJSON(),
+                timestamp: Date.now()
+            });
+        } catch (error) {
+            console.log(`Error creating offer for ${participantId}: ${error.message}`);
+        }
+    }
+    
+    async function handleOffer(signal) {
+        const senderId = signal.sender;
+        let peerConnection = peerConnections[senderId];
+        
+        if (!peerConnection) {
+            peerConnection = setupPeerConnection(senderId);
+        }
+        
+        try {
+            console.log(`Setting remote description from offer from ${senderId}`);
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+            
+            console.log(`Creating answer for ${senderId}`);
+            const answer = await peerConnection.createAnswer();
+            
+            console.log(`Setting local description for answer to ${senderId}`);
+            await peerConnection.setLocalDescription(answer);
+            
+            console.log(`Sending answer to ${senderId}`);
+            push(ref(database, `rooms/${currentRoomId}/signals`), {
+                type: 'answer',
+                sender: myId,
+                receiver: senderId,
+                sdp: peerConnection.localDescription.toJSON(),
+                timestamp: Date.now()
+            });
+        } catch (error) {
+            console.log(`Error handling offer from ${senderId}: ${error.message}`);
+        }
+    }
+    
+    async function handleAnswer(signal) {
+        const senderId = signal.sender;
+        const peerConnection = peerConnections[senderId];
+        
+        if (!peerConnection) {
+            console.log(`Received answer from ${senderId} but no peer connection exists`);
+            return;
+        }
+        
+        try {
+            console.log(`Setting remote description from answer from ${senderId}`);
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+        } catch (error) {
+            console.log(`Error handling answer from ${senderId}: ${error.message}`);
+        }
+    }
+    
+    async function handleIceCandidate(signal) {
+        const senderId = signal.sender;
+        const peerConnection = peerConnections[senderId];
+        
+        if (!peerConnection) {
+            console.log(`Received ICE candidate from ${senderId} but no peer connection exists`);
+            return;
+        }
+        
+        try {
+            console.log(`Adding ICE candidate from ${senderId}`);
+            await peerConnection.addIceCandidate(new RTCIceCandidate(signal.candidate));
+        } catch (error) {
+            console.log(`Error adding ICE candidate from ${senderId}: ${error.message}`);
+        }
+    }
+    
+    // Participant UI management
+    function addParticipantToUI(participant) {
         const participantsDiv = document.getElementById('room-participants');
         if (!participantsDiv) return;
         
-        participantsDiv.innerHTML = '';
-        
-        Object.entries(participants).forEach(([participantEmailMasked, data]) => {
-            const participantEmail = participantEmailMasked.replace(/\*/g, ".");
-            const participantElement = document.createElement('div');
+        let participantElement = document.getElementById(`participant-${participant.id}`);
+        if (!participantElement) {
+            participantElement = document.createElement('div');
+            participantElement.id = `participant-${participant.id}`;
             participantElement.style.cssText = `
                 display: flex;
                 align-items: center;
@@ -574,21 +778,41 @@
                 font-size: 13px;
             `;
             
-            const isCurrentUser = participantEmail === email;
+            const isCurrentUser = participant.id === myId;
             const statusIcon = isCurrentUser ? '🎤' : '👤';
             
             participantElement.innerHTML = `
                 <span style="margin-right: 8px;">${statusIcon}</span>
-                <span style="flex: 1;">${participantEmail}${isCurrentUser ? ' (You)' : ''}</span>
-                <span style="color: #4CAF50; font-size: 12px;">●</span>
+                <span style="flex: 1;">${participant.email}${isCurrentUser ? ' (You)' : ''}</span>
+                <span id="mute-icon-${participant.id}" style="margin-left: 8px; font-size: 12px;">${participant.muted ? '🔇' : '🎤'}</span>
+                <span style="color: #4CAF50; font-size: 12px; margin-left: 4px;">●</span>
             `;
             
             participantsDiv.appendChild(participantElement);
-        });
+        }
+    }
+    
+    function removeParticipantFromUI(participantId) {
+        const participantElement = document.getElementById(`participant-${participantId}`);
+        if (participantElement) {
+            participantElement.remove();
+        }
+        
+        const audioElement = document.getElementById(`audio-${participantId}`);
+        if (audioElement) {
+            audioElement.remove();
+        }
+    }
+    
+    function updateParticipantMuteStatus(participantId, isMuted) {
+        const muteIcon = document.getElementById(`mute-icon-${participantId}`);
+        if (muteIcon) {
+            muteIcon.textContent = isMuted ? '🔇' : '🎤';
+        }
     }
 
     // Update current room display
-    function updateCurrentRoomDisplay(roomName) {
+    async function updateCurrentRoomDisplay(roomName) {
         const currentRoomSection = document.getElementById('current-room-section');
         const currentRoomName = document.getElementById('current-room-name');
         const deleteBtn = document.getElementById('delete-room-btn');
@@ -602,48 +826,31 @@
         }
         
         // Show delete button only for room owners
-        if (deleteBtn && typeof database !== 'undefined') {
-            const roomRef = ref(database, `VoiceRooms/${roomName}`);
-            get(roomRef).then((snapshot) => {
+        if (deleteBtn && typeof database !== 'undefined' && currentRoomId) {
+            try {
+                const roomRef = ref(database, `rooms/${currentRoomId}`);
+                const snapshot = await get(roomRef);
                 const room = snapshot.val();
-                if (room && room.owner === email.replace(/\./g, "*")) {
+                
+                if (room && room.createdBy === myId) {
                     deleteBtn.style.display = 'block';
+                } else {
+                    deleteBtn.style.display = 'none';
                 }
-            });
+            } catch (error) {
+                console.error('Error checking room ownership:', error);
+                deleteBtn.style.display = 'none';
+            }
         }
     }
 
     // Leave current voice room
     function leaveVoiceRoom() {
-        if (!currentVoiceRoom) return;
-        
-        const roomName = currentVoiceRoom; // Store room name before clearing
-        const roomRef = ref(database, `VoiceRooms/${roomName}/participants/${email.replace(/\./g, "*")}`);
-        
-        // Remove user from participants
-        remove(roomRef).then(() => {
-            // Check if room is empty and clean up
-            const roomParticipantsRef = ref(database, `VoiceRooms/${roomName}/participants`);
-            return get(roomParticipantsRef);
-        }).then((snapshot) => {
-            const participants = snapshot.val();
-            console.log('Participants after user left:', participants);
-            
-            if (!participants || Object.keys(participants).length === 0) {
-                // Room is empty, delete entire room
-                console.log(`Room ${roomName} is empty, deleting...`);
-                const fullRoomRef = ref(database, `VoiceRooms/${roomName}`);
-                return remove(fullRoomRef).then(() => {
-                    console.log(`Successfully deleted empty room: ${roomName}`);
-                });
-            }
-        }).catch((error) => {
-            console.error('Error leaving room or deleting empty room:', error);
-        });
+        if (!currentRoomId) return;
         
         // Close all peer connections
-        peerConnections.forEach(pc => pc.close());
-        peerConnections.clear();
+        Object.values(peerConnections).forEach(pc => pc.close());
+        peerConnections = {};
         
         // Stop local stream
         if (localStream) {
@@ -651,7 +858,30 @@
             localStream = null;
         }
         
+        // Remove user from participants
+        if (myId) {
+            const participantRef = ref(database, `rooms/${currentRoomId}/participants/${myId}`);
+            remove(participantRef).then(() => {
+                checkAndDeleteEmptyRoom(currentRoomId);
+            }).catch(error => {
+                console.error('Error removing participant:', error);
+            });
+        }
+        
+        // Clear participants display
+        const participantsDiv = document.getElementById('room-participants');
+        if (participantsDiv) {
+            participantsDiv.innerHTML = '';
+        }
+        
+        // Remove audio elements
+        const audioContainer = document.getElementById('audio-elements-container');
+        if (audioContainer) {
+            audioContainer.innerHTML = '';
+        }
+        
         // Reset state
+        currentRoomId = null;
         currentVoiceRoom = null;
         isVoiceChatActive = false;
         roomParticipants.clear();
@@ -665,61 +895,83 @@
         console.log('Left voice room');
     }
 
-    // Kick all participants out of a room
-    function kickAllParticipants(roomName, participants) {
-        if (!participants) {
-            return Promise.resolve();
-        }
-
-        console.log(`Kicking all participants out of room: ${roomName}`);
+    // Check if room is empty and delete if so
+    async function checkAndDeleteEmptyRoom(roomId) {
+        if (!roomId) return;
         
-        // Create array of promises to remove each participant
-        const removePromises = Object.keys(participants).map(participantEmailMasked => {
-            const participantRef = ref(database, `VoiceRooms/${roomName}/participants/${participantEmailMasked}`);
-            console.log(`Removing participant: ${participantEmailMasked.replace(/\*/g, ".")}`);
+        try {
+            const participantsRef = ref(database, `rooms/${roomId}/participants`);
+            const snapshot = await get(participantsRef);
+            
+            if (!snapshot.exists()) {
+                // Room is empty, delete it
+                const roomRef = ref(database, `rooms/${roomId}`);
+                await remove(roomRef);
+                console.log(`Deleted empty room: ${roomId}`);
+            }
+        } catch (error) {
+            console.error('Error checking/deleting empty room:', error);
+        }
+    }
+
+    // Kick all participants out of a room
+    async function kickAllParticipants(roomId) {
+        if (!roomId) return;
+        
+        try {
+            const participantsRef = ref(database, `rooms/${roomId}/participants`);
+            const snapshot = await get(participantsRef);
+            const participants = snapshot.val();
+            
+            if (!participants) return;
+            
+            console.log(`Kicking all participants out of room: ${roomId}`);
+            
+            // Remove all participants
+            const removePromises = Object.keys(participants).map(participantId => {
+                const participantRef = ref(database, `rooms/${roomId}/participants/${participantId}`);
+                console.log(`Removing participant: ${participantId}`);
             return remove(participantRef).catch((error) => {
-                console.error(`Error removing participant ${participantEmailMasked}:`, error);
-                // Don't fail the entire operation if one participant removal fails
+                    console.error(`Error removing participant ${participantId}:`, error);
                 return null;
             });
         });
 
-        // Wait for all participants to be removed
-        return Promise.all(removePromises).then(() => {
-            console.log(`All participants have been removed from room: ${roomName}`);
-        });
+            await Promise.all(removePromises);
+            console.log(`All participants have been removed from room: ${roomId}`);
+        } catch (error) {
+            console.error('Error kicking participants:', error);
+        }
     }
 
     // Delete current room (owner only)
-    function deleteCurrentRoom() {
-        if (!currentVoiceRoom) return;
+    async function deleteCurrentRoom() {
+        if (!currentRoomId) return;
         
-        const roomRef = ref(database, `VoiceRooms/${currentVoiceRoom}`);
-        
-        get(roomRef).then((snapshot) => {
+        try {
+            const roomRef = ref(database, `rooms/${currentRoomId}`);
+            const snapshot = await get(roomRef);
             const room = snapshot.val();
-            if (room && room.owner === email.replace(/\./g, "*")) {
+            
+            if (room && room.createdBy === myId) {
                 // First, kick all participants out of the room
-                return kickAllParticipants(currentVoiceRoom, room.participants);
-            } else {
-                showError('Only room owner can delete the room');
-                throw new Error('Not room owner');
-            }
-        }).then(() => {
+                await kickAllParticipants(currentRoomId);
+                
             // Add a small delay to ensure all participants are removed
-            return new Promise(resolve => setTimeout(resolve, 500));
-        }).then(() => {
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
             // Now delete the room from database
-            return remove(roomRef);
-        }).then(() => {
+                await remove(roomRef);
+                
             leaveVoiceRoom();
             loadAvailableRooms();
-        }).catch((error) => {
-            if (error.message !== 'Not room owner') {
+            } else {
+                showError('Only room owner can delete the room');
+            }
+        } catch (error) {
                 console.error('Error deleting room:', error);
                 showError('Failed to delete room');
             }
-        });
     }
 
     // Notify participants about room deletion
@@ -786,18 +1038,46 @@
         }
     }
 
+    // Add mute toggle functionality
+    function setupMuteToggle() {
+        // This function would be called when integrating with the parent application
+        // For now, we'll add a simple mute/unmute function
+        window.toggleMute = function() {
+            if (!myId || !currentRoomId) return;
+            
+            isMuted = !isMuted;
+            
+            // Update local stream
+            if (localStream) {
+                localStream.getAudioTracks().forEach((track) => {
+                    track.enabled = !isMuted;
+                });
+            }
+            
+            // Update database
+            const myParticipantRef = ref(database, `rooms/${currentRoomId}/participants/${myId}/muted`);
+            set(myParticipantRef, isMuted).catch(error => {
+                console.error('Error updating mute status:', error);
+            });
+            
+            console.log(`Microphone ${isMuted ? 'muted' : 'unmuted'}`);
+        };
+    }
+
     // Export functions for global access
     if (typeof window !== 'undefined') {
         window.toggleVoiceChatMenu = toggleVoiceChatMenu;
         window.closeVoiceChatMenu = closeVoiceChatMenu;
         window.createNewVoiceRoom = createNewVoiceRoom;
         window.createVoiceRoom = createVoiceRoom;
-        window.createVoiceRoomWithRetry = createVoiceRoomWithRetry;
         window.joinVoiceRoom = joinVoiceRoom;
         window.leaveVoiceRoom = leaveVoiceRoom;
         window.deleteCurrentRoom = deleteCurrentRoom;
         window.addVoiceChatButton = addVoiceChatButton;
         window.initializeVoiceChat = initializeVoiceChat;
         window.cleanupVoiceChat = cleanupVoiceChat;
+        
+        // Setup mute functionality
+        setupMuteToggle();
     }
 })();
