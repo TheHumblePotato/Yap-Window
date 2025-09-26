@@ -22,6 +22,62 @@
   const email = auth.currentUser.email;
 
   console.log(auth.currentUser.email);
+
+  function formatDate(dateString) {
+    const messageDate = new Date(dateString);
+    const now = new Date();
+
+    const messageMidnight = new Date(
+      messageDate.getFullYear(),
+      messageDate.getMonth(),
+      messageDate.getDate(),
+    );
+    const todayMidnight = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+    );
+
+    const diffTime = todayMidnight - messageMidnight;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) {
+      return `Today ${messageDate.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`;
+    } else if (diffDays === 1) {
+      return `Yesterday ${messageDate.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`;
+    } else if (diffDays <= 10){
+      return `${diffDays} days ago ${messageDate.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`;
+    } else {
+      return `${getDate(dateString)} ${messageDate.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`;
+    }
+  }
+
+  function getDate(myDate){
+    const date = new Date(myDate);
+    const month = date.getMonth() + 1; // Get month and add 1 (September is 8, so 8 + 1 = 9)
+    const day = date.getDate();     // Get day (16)
+    const year = date.getFullYear(); // Get full year (2025)
+
+    // Pad month and day with leading zeros if they are single digits
+    const formattedMonth = month < 10 ? '0' + month : month;
+    const formattedDay = day < 10 ? '0' + day : day;
+
+    const formattedDate = `${formattedMonth}/${formattedDay}/${year}`;
+
+    return formattedDate;
+  }
   
   // Load Voice Chat functionality
   try {
@@ -2026,60 +2082,7 @@
       }
     });
 
-    function formatDate(dateString) {
-      const messageDate = new Date(dateString);
-      const now = new Date();
 
-      const messageMidnight = new Date(
-        messageDate.getFullYear(),
-        messageDate.getMonth(),
-        messageDate.getDate(),
-      );
-      const todayMidnight = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate(),
-      );
-
-      const diffTime = todayMidnight - messageMidnight;
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-      if (diffDays === 0) {
-        return `Today ${messageDate.toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        })}`;
-      } else if (diffDays === 1) {
-        return `Yesterday ${messageDate.toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        })}`;
-      } else if (diffDays <= 10){
-        return `${diffDays} days ago ${messageDate.toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        })}`;
-      } else {
-        return `${getDate(dateString)} ${messageDate.toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        })}`;
-      }
-    }
-
-    function getDate(myDate){
-      const month = myDate.getMonth() + 1; // Get month and add 1 (September is 8, so 8 + 1 = 9)
-      const day = myDate.getDate();     // Get day (16)
-      const year = myDate.getFullYear(); // Get full year (2025)
-
-      // Pad month and day with leading zeros if they are single digits
-      const formattedMonth = month < 10 ? '0' + month : month;
-      const formattedDay = day < 10 ? '0' + day : day;
-
-      const formattedDate = `${formattedMonth}/${formattedDay}/${year}`;
-
-      return formattedDate;
-    }
 
     async function appendSingleMessage(message, prepend = false) {
       if (appendedMessages.has(message.id) || currentChat !== chatName) return;
