@@ -743,9 +743,16 @@
                     return timeA - timeB;
                   });
 
-                  messageIds.forEach(id => {
+                  let lastReadIndex = -1;
+                  messageIds.forEach((id, index) => {
+                    if (id === lastReadId) {
+                      lastReadIndex = index;
+                    }
+                  });
+
+                  messageIds.forEach((id, index) => {
                     const msg = dmData[id];
-                    if (msg.User !== email && (!lastReadId || id > lastReadId)) {
+                    if (msg.User !== email && index > lastReadIndex) {
                       unreadCount++;
                     }
                   });
