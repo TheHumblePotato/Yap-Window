@@ -657,6 +657,10 @@
 
           console.log("Filtered DM entries for user:", entries);
 
+          // Remove loading message
+          const loadingMsg = dmList.querySelector(".loading-dms-message");
+          if (loadingMsg) loadingMsg.remove();
+
           if (entries.length === 0) {
             // Clear the list and show "no DMs" message
             dmList.innerHTML = "";
@@ -1292,6 +1296,8 @@
 
     async function appendSingleMessage(message, prepend = false) {
       if (appendedMessages.has(message.id) || currentDMKey !== pairKey) return;
+
+      if (!message.User || !message.Date || !message.Message) return; // Skip invalid messages
 
       const messageDate = new Date(message.Date);
       const username = message.User;
