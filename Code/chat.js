@@ -571,11 +571,19 @@
         const lastReadMessage = readMessages[chatName] || "";
         let unreadCount = 0;
 
-        Object.entries(messages).forEach(([messageId, message]) => {
-          if (
-            message.User !== email &&
-            (!lastReadMessage || messageId > lastReadMessage)
-          ) {
+        const sortedMessages = Object.entries(messages).sort(
+          ([, a], [, b]) => new Date(a.Date) - new Date(b.Date),
+        );
+
+        let lastReadIndex = -1;
+        sortedMessages.forEach(([messageId, message], index) => {
+          if (messageId === lastReadMessage) {
+            lastReadIndex = index;
+          }
+        });
+
+        sortedMessages.forEach(([messageId, message], index) => {
+          if (message.User !== email && index > lastReadIndex) {
             unreadCount++;
           }
         });
