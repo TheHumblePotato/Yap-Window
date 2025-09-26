@@ -179,6 +179,114 @@
         `;
         
         document.body.insertAdjacentHTML('beforeend', voiceChatMenu);
+        
+        // Also create the troubleshooting modal
+        createTroubleshootingModal();
+    }
+
+    // Create troubleshooting modal for microphone issues
+    function createTroubleshootingModal() {
+        const troubleshootingModal = `
+            <div id="mic-troubleshooting-modal" class="troubleshooting-modal hidden" style="
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.7);
+                z-index: 1000001;
+                display: none;
+                align-items: center;
+                justify-content: center;
+                font-family: Aptos, Calibri, sans-serif;
+            ">
+                <div class="modal-content" style="
+                    background: var(--bg-color, #fff);
+                    border-radius: 12px;
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+                    width: 90%;
+                    max-width: 600px;
+                    max-height: 80vh;
+                    overflow-y: auto;
+                    position: relative;
+                ">
+                    <div class="modal-header" style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        padding: 20px 24px;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        border-radius: 12px 12px 0 0;
+                    ">
+                        <h2 style="margin: 0; display: flex; align-items: center; gap: 10px;">
+                            🎤 Microphone Troubleshooting
+                        </h2>
+                        <button onclick="closeTroubleshootingModal()" style="
+                            background: none;
+                            border: none;
+                            color: white;
+                            font-size: 24px;
+                            cursor: pointer;
+                            padding: 0;
+                            width: 30px;
+                            height: 30px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            border-radius: 50%;
+                            transition: background 0.2s;
+                        ">×</button>
+                    </div>
+                    
+                    <div id="troubleshooting-content" class="modal-body" style="
+                        padding: 24px;
+                        line-height: 1.6;
+                    ">
+                        <!-- Content will be dynamically populated -->
+                    </div>
+                    
+                    <div class="modal-footer" style="
+                        padding: 16px 24px;
+                        background: var(--bg-secondary, #f8f9fa);
+                        border-radius: 0 0 12px 12px;
+                        display: flex;
+                        gap: 12px;
+                        justify-content: flex-end;
+                    ">
+                        <button onclick="testMicrophone()" style="
+                            padding: 10px 20px;
+                            background: #28a745;
+                            color: white;
+                            border: none;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-weight: 500;
+                        ">🧪 Test Microphone</button>
+                        <button onclick="retryMicrophoneAccess()" style="
+                            padding: 10px 20px;
+                            background: #007bff;
+                            color: white;
+                            border: none;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-weight: 500;
+                        ">🔄 Try Again</button>
+                        <button onclick="closeTroubleshootingModal()" style="
+                            padding: 10px 20px;
+                            background: #6c757d;
+                            color: white;
+                            border: none;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-weight: 500;
+                        ">Close</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', troubleshootingModal);
     }
 
     // Setup event listeners for voice chat
@@ -462,9 +570,59 @@
             }
     }
 
+    // Check microphone permissions before requesting access
+    async function checkMicrophonePermissions() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            return {
+                supported: false,
+                error: 'Your browser does not support microphone access. Please use a modern browser like Chrome, Firefox, or Safari.'
+            };
+        }
+
+        // Check if we're on HTTPS (required for getUserMedia in most browsers)
+        if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+            return {
+                supported: false,
+                error: 'Microphone access requires HTTPS. Please use a secure connection.'
+            };
+        }
+
+        try {
+            // Check permission status if available
+            if (navigator.permissions) {
+                const permission = await navigator.permissions.query({ name: 'microphone' });
+                if (permission.state === 'denied') {
+                    return {
+                        supported: true,
+                        granted: false,
+                        error: 'Microphone permission was denied. Please enable microphone access in your browser settings.'
+                    };
+                }
+            }
+
+            return { supported: true, granted: true };
+        } catch (error) {
+            console.log('Permission check failed:', error);
+            return { supported: true, granted: null }; // Unknown, but we can try
+        }
+    }
+
     // Initialize voice connection and WebRTC
     async function initializeVoiceConnection(roomId) {
         try {
+            // First check microphone permissions and support
+            const permissionCheck = await checkMicrophonePermissions();
+            
+            if (!permissionCheck.supported) {
+                showMicrophoneError(permissionCheck.error, 'UNSUPPORTED');
+                return;
+            }
+            
+            if (permissionCheck.granted === false) {
+                showMicrophoneError(permissionCheck.error, 'DENIED');
+                return;
+            }
+
             // Request microphone permission
             localStream = await navigator.mediaDevices.getUserMedia({ 
                 audio: {
@@ -490,7 +648,29 @@
             console.log('Voice connection initialized for room:', roomId);
         } catch (error) {
             console.error('Error initializing voice connection:', error);
-            showError('Microphone access denied');
+            
+            // Provide specific error messages based on the error type
+            let errorMessage = 'Failed to access microphone';
+            let errorType = 'GENERIC';
+            
+            if (error.name === 'NotAllowedError') {
+                errorMessage = 'Microphone access was denied by the user';
+                errorType = 'DENIED';
+            } else if (error.name === 'NotFoundError') {
+                errorMessage = 'No microphone was found on this device';
+                errorType = 'NOT_FOUND';
+            } else if (error.name === 'NotReadableError') {
+                errorMessage = 'Microphone is already in use by another application';
+                errorType = 'IN_USE';
+            } else if (error.name === 'OverconstrainedError') {
+                errorMessage = 'Microphone constraints could not be satisfied';
+                errorType = 'CONSTRAINTS';
+            } else if (error.name === 'SecurityError') {
+                errorMessage = 'Microphone access blocked by browser security policy';
+                errorType = 'SECURITY';
+            }
+            
+            showMicrophoneError(errorMessage, errorType, error);
         }
     }
 
@@ -991,6 +1171,296 @@
         alert(`Voice Chat: ${message}`);
     }
 
+    // Show microphone-specific error with troubleshooting guidance
+    function showMicrophoneError(message, errorType, originalError = null) {
+        console.error('Microphone Error:', message, originalError);
+        showTroubleshootingModal(message, errorType, originalError);
+    }
+
+    // Show troubleshooting modal with specific content based on error type
+    function showTroubleshootingModal(message, errorType, originalError = null) {
+        const modal = document.getElementById('mic-troubleshooting-modal');
+        const content = document.getElementById('troubleshooting-content');
+        
+        if (!modal || !content) {
+            // Fallback to alert if modal doesn't exist
+            alert(`🎤 Microphone Issue: ${message}\n\nPlease check your microphone settings and try again.`);
+            return;
+        }
+        
+        let troubleshootingContent = '';
+        
+        switch (errorType) {
+            case 'DENIED':
+                troubleshootingContent = `
+                    <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                        <h3 style="margin: 0 0 8px 0; color: #856404;">⚠️ Permission Denied</h3>
+                        <p style="margin: 0; color: #856404;">${message}</p>
+                    </div>
+                    
+                    <h4 style="color: #495057; margin-bottom: 16px;">🔧 How to Fix This:</h4>
+                    
+                    <div style="background: #f8f9fa; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                        <h5 style="margin: 0 0 12px 0;">Quick Fix (Recommended):</h5>
+                        <ol style="margin: 0; padding-left: 20px;">
+                            <li>Look for a microphone 🎤 icon in your browser's address bar</li>
+                            <li>Click on it and select <strong>"Allow"</strong></li>
+                            <li>If not visible, click the lock/info icon 🔒 next to the URL</li>
+                            <li>Set microphone permission to <strong>"Allow"</strong></li>
+                            <li>Refresh the page and try again</li>
+                        </ol>
+                    </div>
+                    
+                    <details style="margin-top: 16px;">
+                        <summary style="cursor: pointer; font-weight: 500; color: #007bff;">Browser-Specific Instructions</summary>
+                        <div style="margin-top: 12px; padding: 12px; background: #f8f9fa; border-radius: 6px;">
+                            <p><strong>Chrome:</strong> Settings → Privacy and security → Site Settings → Microphone</p>
+                            <p><strong>Firefox:</strong> Settings → Privacy & Security → Permissions → Microphone</p>
+                            <p><strong>Safari:</strong> Safari → Preferences → Websites → Microphone</p>
+                        </div>
+                    </details>
+                `;
+                break;
+                
+            case 'NOT_FOUND':
+                troubleshootingContent = `
+                    <div style="background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                        <h3 style="margin: 0 0 8px 0; color: #721c24;">🎤 No Microphone Found</h3>
+                        <p style="margin: 0; color: #721c24;">${message}</p>
+                    </div>
+                    
+                    <h4 style="color: #495057; margin-bottom: 16px;">🔧 Troubleshooting Steps:</h4>
+                    
+                    <ol style="background: #f8f9fa; border-radius: 8px; padding: 16px; margin: 0;">
+                        <li style="margin-bottom: 8px;">Check if your microphone is properly connected</li>
+                        <li style="margin-bottom: 8px;">Test microphone in other apps (e.g., voice recorder)</li>
+                        <li style="margin-bottom: 8px;">Check if microphone is muted in system settings</li>
+                        <li style="margin-bottom: 8px;">Try refreshing the page</li>
+                        <li>Restart your browser</li>
+                    </ol>
+                `;
+                break;
+                
+            case 'IN_USE':
+                troubleshootingContent = `
+                    <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                        <h3 style="margin: 0 0 8px 0; color: #856404;">🔄 Microphone Busy</h3>
+                        <p style="margin: 0; color: #856404;">${message}</p>
+                    </div>
+                    
+                    <h4 style="color: #495057; margin-bottom: 16px;">🔧 Resolution Steps:</h4>
+                    
+                    <ol style="background: #f8f9fa; border-radius: 8px; padding: 16px; margin: 0;">
+                        <li style="margin-bottom: 8px;">Close other applications using the microphone:<br>
+                            <small style="color: #6c757d;">Zoom, Teams, Discord, Skype, etc.</small></li>
+                        <li style="margin-bottom: 8px;">Close other browser tabs that might be using the microphone</li>
+                        <li style="margin-bottom: 8px;">Check system audio settings for conflicting applications</li>
+                        <li>Restart your browser if the issue persists</li>
+                    </ol>
+                `;
+                break;
+                
+            case 'UNSUPPORTED':
+                troubleshootingContent = `
+                    <div style="background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                        <h3 style="margin: 0 0 8px 0; color: #721c24;">🌐 Browser Not Supported</h3>
+                        <p style="margin: 0; color: #721c24;">${message}</p>
+                    </div>
+                    
+                    <h4 style="color: #495057; margin-bottom: 16px;">✅ Recommended Browsers:</h4>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+                        <div style="background: #f8f9fa; border-radius: 8px; padding: 12px; text-align: center;">
+                            <div style="font-size: 24px; margin-bottom: 8px;">🟦</div>
+                            <strong>Google Chrome</strong><br>
+                            <small style="color: #6c757d;">Latest version</small>
+                        </div>
+                        <div style="background: #f8f9fa; border-radius: 8px; padding: 12px; text-align: center;">
+                            <div style="font-size: 24px; margin-bottom: 8px;">🦊</div>
+                            <strong>Mozilla Firefox</strong><br>
+                            <small style="color: #6c757d;">Latest version</small>
+                        </div>
+                        <div style="background: #f8f9fa; border-radius: 8px; padding: 12px; text-align: center;">
+                            <div style="font-size: 24px; margin-bottom: 8px;">🧭</div>
+                            <strong>Safari</strong><br>
+                            <small style="color: #6c757d;">Latest version</small>
+                        </div>
+                        <div style="background: #f8f9fa; border-radius: 8px; padding: 12px; text-align: center;">
+                            <div style="font-size: 24px; margin-bottom: 8px;">📐</div>
+                            <strong>Microsoft Edge</strong><br>
+                            <small style="color: #6c757d;">Latest version</small>
+                        </div>
+                    </div>
+                `;
+                break;
+                
+            case 'SECURITY':
+                troubleshootingContent = `
+                    <div style="background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                        <h3 style="margin: 0 0 8px 0; color: #721c24;">🔒 Security Error</h3>
+                        <p style="margin: 0; color: #721c24;">${message}</p>
+                    </div>
+                    
+                    <h4 style="color: #495057; margin-bottom: 16px;">🔧 Security Checklist:</h4>
+                    
+                    <ol style="background: #f8f9fa; border-radius: 8px; padding: 16px; margin: 0;">
+                        <li style="margin-bottom: 8px;">Ensure you're using HTTPS (secure connection)</li>
+                        <li style="margin-bottom: 8px;">Check if the site is blocked by corporate firewall</li>
+                        <li style="margin-bottom: 8px;">Try accessing from a different network</li>
+                        <li>Temporarily disable VPN and try again</li>
+                    </ol>
+                `;
+                break;
+                
+            default:
+                troubleshootingContent = `
+                    <div style="background: #d1ecf1; border: 1px solid #bee5eb; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                        <h3 style="margin: 0 0 8px 0; color: #0c5460;">🔧 General Issue</h3>
+                        <p style="margin: 0; color: #0c5460;">${message}</p>
+                    </div>
+                    
+                    <h4 style="color: #495057; margin-bottom: 16px;">💡 General Troubleshooting:</h4>
+                    
+                    <ol style="background: #f8f9fa; border-radius: 8px; padding: 16px; margin: 0;">
+                        <li style="margin-bottom: 8px;">Refresh the page and try again</li>
+                        <li style="margin-bottom: 8px;">Check microphone permissions in browser settings</li>
+                        <li style="margin-bottom: 8px;">Test microphone in other applications</li>
+                        <li style="margin-bottom: 8px;">Try a different browser</li>
+                        <li>Restart your computer if the issue persists</li>
+                    </ol>
+                `;
+        }
+        
+        content.innerHTML = troubleshootingContent;
+        
+        // Show the modal
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+    }
+
+    // Close troubleshooting modal
+    function closeTroubleshootingModal() {
+        const modal = document.getElementById('mic-troubleshooting-modal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+        }
+    }
+
+    // Test microphone functionality
+    async function testMicrophone() {
+        try {
+            console.log('Testing microphone...');
+            
+            // Try to get a basic audio stream for testing
+            const testStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            
+            // Create a simple audio visualization or feedback
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const source = audioContext.createMediaStreamSource(testStream);
+            const analyser = audioContext.createAnalyser();
+            source.connect(analyser);
+            
+            analyser.fftSize = 256;
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            
+            let isDetectingSound = false;
+            
+            const checkAudio = () => {
+                analyser.getByteFrequencyData(dataArray);
+                
+                // Check if there's audio input
+                const average = dataArray.reduce((sum, value) => sum + value, 0) / bufferLength;
+                
+                if (average > 5 && !isDetectingSound) {
+                    isDetectingSound = true;
+                    showError('✅ Microphone test successful! Audio detected.');
+                    
+                    // Stop the test stream
+                    testStream.getTracks().forEach(track => track.stop());
+                    audioContext.close();
+                    return;
+                }
+                
+                if (!isDetectingSound) {
+                    requestAnimationFrame(checkAudio);
+                }
+            };
+            
+            checkAudio();
+            
+            // Show instruction and stop test after 5 seconds if no audio detected
+            showError('🎤 Microphone test started. Please speak into your microphone...');
+            
+            setTimeout(() => {
+                if (!isDetectingSound) {
+                    testStream.getTracks().forEach(track => track.stop());
+                    audioContext.close();
+                    showError('⚠️ No audio detected. Please check your microphone settings.');
+                }
+            }, 5000);
+            
+        } catch (error) {
+            console.error('Microphone test failed:', error);
+            showError(`❌ Microphone test failed: ${error.message}`);
+        }
+    }
+
+    // Retry microphone access with simplified constraints
+    async function retryMicrophoneAccess() {
+        if (!currentRoomId) return;
+        
+        try {
+            console.log('Attempting retry with basic audio constraints...');
+            
+            // Try with basic constraints first
+            localStream = await navigator.mediaDevices.getUserMedia({ 
+                audio: true
+            });
+            
+            console.log('Basic microphone access successful, upgrading constraints...');
+            
+            // If basic works, try to get enhanced audio
+            try {
+                const enhancedStream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
+                });
+                
+                // Stop the basic stream and use enhanced one
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = enhancedStream;
+                console.log('Enhanced microphone access successful');
+            } catch (enhancedError) {
+                console.log('Enhanced constraints failed, using basic audio:', enhancedError);
+            }
+            
+            isVoiceChatActive = true;
+            
+            // Add user to participants
+            const myParticipantRef = ref(database, `rooms/${currentRoomId}/participants/${myId}`);
+            await set(myParticipantRef, {
+                timestamp: Date.now(),
+                id: myId,
+                email: auth.currentUser ? auth.currentUser.email : 'Unknown',
+                muted: isMuted
+            });
+            
+            // Setup room listeners if not already set up
+            setupRoomListeners(currentRoomId);
+            
+            showError('✅ Microphone access successful! You can now participate in voice chat.');
+            
+        } catch (retryError) {
+            console.error('Retry failed:', retryError);
+            showError('Retry failed. Please check your microphone settings and try again manually.');
+        }
+    }
+
     // Cleanup function
     function cleanupVoiceChat() {
         if (currentVoiceRoom) {
@@ -1076,6 +1546,12 @@
         window.addVoiceChatButton = addVoiceChatButton;
         window.initializeVoiceChat = initializeVoiceChat;
         window.cleanupVoiceChat = cleanupVoiceChat;
+        
+        // Export troubleshooting functions
+        window.showTroubleshootingModal = showTroubleshootingModal;
+        window.closeTroubleshootingModal = closeTroubleshootingModal;
+        window.testMicrophone = testMicrophone;
+        window.retryMicrophoneAccess = retryMicrophoneAccess;
         
         // Setup mute functionality
         setupMuteToggle();
