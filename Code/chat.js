@@ -170,28 +170,11 @@
     );
     const snapshot = await get(readMessagesRef);
     readMessages = snapshot.val() || {};
-
-    // Also load DM read status
-    const readDMsRef = ref(
-      database,
-      `Accounts/${email.replace(/\./g, "*")}/readDMs`,
-    );
-    const dmSnapshot = await get(readDMsRef);
-    const readDMs = dmSnapshot.val() || {};
-    for (const [dmKey, readData] of Object.entries(readDMs)) {
-      if (typeof readData === 'object' && readData.lastReadId) {
-        readMessages[dmKey] = readData.lastReadId;
-      } else if (typeof readData === 'string') {
-        readMessages[dmKey] = readData;
-      }
-    }
-
     return readMessages;
   }
 
   function updateReadAllStatus() {
     const allChats = document.querySelectorAll(".server");
-    const allDMs = document.querySelectorAll(".dm");
     readAll = true;
 
     allChats.forEach((chat) => {
@@ -200,14 +183,6 @@
         readAll = false;
       }
     });
-
-    allDMs.forEach((dm) => {
-      const unreadCount = parseInt(dm.getAttribute("data-unread") || "0");
-      if (unreadCount > 0) {
-        readAll = false;
-      }
-    });
-
     updateFavicon();
   }
 
@@ -658,65 +633,6 @@
       loadingMsg.style.padding = "5px";
       dmList.appendChild(loadingMsg);
 
-      // Function to update unread count for a DM
-      function updateDMUnread(pairKey) {
-        const userRef = ref(database, `Accounts/${myKey}/readDMs/${pairKey}`);
-        get(userRef).then((userSnapshot) => {
-          const dmReadStatus = userSnapshot.val() || {};
-          let lastReadId;
-          if (typeof dmReadStatus === 'object' && dmReadStatus.lastReadId) {
-            lastReadId = dmReadStatus.lastReadId;
-          } else if (typeof dmReadStatus === 'string') {
-            lastReadId = dmReadStatus;
-          } else {
-            lastReadId = "";
-          }
-
-          const dmRef = ref(database, `dms/${pairKey}`);
-          get(dmRef).then((dmSnapshot) => {
-            const dmData = dmSnapshot.val() || {};
-            const messageIds = Object.keys(dmData).filter(k => k !== "__meta__");
-
-            let unreadCount = 0;
-            messageIds.forEach(id => {
-              if (id > lastReadId && dmData[id].User !== email) {
-                unreadCount++;
-              }
-            });
-
-            const dmEl = document.querySelector(`.dm[data-dm-key="${pairKey}"]`);
-            if (dmEl) {
-              dmEl.setAttribute("data-unread", unreadCount);
-              const badge = dmEl.querySelector('.unread-badge');
-              if (unreadCount > 0) {
-                if (!badge) {
-                  const newBadge = document.createElement("span");
-                  newBadge.className = "unread-badge";
-                  newBadge.style.display = "inline";
-                  newBadge.style.backgroundColor = isDark ? "#ff6b6b" : "#ff4444";
-                  newBadge.style.color = "white";
-                  newBadge.style.borderRadius = "10px";
-                  newBadge.style.padding = "2px 6px";
-                  newBadge.style.fontSize = "12px";
-                  newBadge.style.marginLeft = "5px";
-                  dmEl.appendChild(newBadge);
-                }
-                badge.textContent = unreadCount > 99 ? "99+" : unreadCount;
-                badge.style.display = "inline";
-              } else {
-                if (badge) {
-                  badge.remove();
-                }
-              }
-            }
-          }).catch((error) => {
-            console.error("Error updating DM unread for", pairKey, error);
-          });
-        }).catch((error) => {
-          console.error("Error getting read status for", pairKey, error);
-        });
-      }
-
       // Use onValue to keep DM list updated in real-time
       const dmsRef = ref(database, `dms`);
       let isInitialLoad = true;
@@ -759,67 +675,126 @@
             return;
           }
 
-          // Clear the list only if this is not the initial load
-          if (!isInitialLoad) {
-            dmList.innerHTML = "";
-          }
+          // Track unread messages
+          const userRef = ref(database, `Accounts/${myKey}/readDMs`);
+          get(userRef).then((userSnapshot) => {
+            const readStatus = userSnapshot.val() || {};
+            console.log("Read status:", readStatus);
 
-          // Set isInitialLoad to false after first successful load
-          if (isInitialLoad) {
-            isInitialLoad = false;
-          }
+            // Clear the list only if this is not the initial load
+            if (!isInitialLoad) {
+              dmList.innerHTML = "";
+            }
 
-          entries.forEach((pairKey) => {
-            const dmEl = document.createElement("div");
-            dmEl.className = "dm";
-            dmEl.style.padding = "8px";
-            dmEl.style.margin = "2px 0";
-            dmEl.style.borderRadius = "4px";
-            dmEl.style.cursor = "pointer";
-            dmEl.style.transition = "background-color 0.2s";
-            dmEl.setAttribute("data-dm-key", pairKey);
+            // Set isInitialLoad to false after first successful load
+            if (isInitialLoad) {
+              isInitialLoad = false;
+            }
 
-            // Split by comma or underscore (supporting both old and new format)
-            const parts = pairKey.includes(",") ? pairKey.split(",") : pairKey.split("_");
-            const other = parts[0] === myKey ? parts[1] : parts[0];
-            const otherEmail = other.replace(/\*/g, ".");
+            entries.forEach((pairKey) => {
+              const dmEl = document.createElement("div");
+              dmEl.className = "dm";
+              dmEl.style.padding = "8px";
+              dmEl.style.margin = "2px 0";
+              dmEl.style.borderRadius = "4px";
+              dmEl.style.cursor = "pointer";
+              dmEl.style.transition = "background-color 0.2s";
+              dmEl.setAttribute("data-dm-key", pairKey);
 
-            // Create container for name and unread indicator
-            const nameContainer = document.createElement("div");
-            nameContainer.style.display = "flex";
-            nameContainer.style.justifyContent = "space-between";
-            nameContainer.style.alignItems = "center";
-            nameContainer.style.width = "100%";
+              // Split by comma or underscore (supporting both old and new format)
+              const parts = pairKey.includes(",") ? pairKey.split(",") : pairKey.split("_");
+              const other = parts[0] === myKey ? parts[1] : parts[0];
+              const otherEmail = other.replace(/\*/g, ".");
 
-            const nameSpan = document.createElement("span");
-            nameContainer.appendChild(nameSpan);
+              // Create container for name and unread indicator
+              const nameContainer = document.createElement("div");
+              nameContainer.style.display = "flex";
+              nameContainer.style.justifyContent = "space-between";
+              nameContainer.style.alignItems = "center";
+              nameContainer.style.width = "100%";
 
-            // Get username for display
-            getUsernameFromEmail(otherEmail).then(username => {
-              nameSpan.textContent = username || otherEmail;
-              dmEl.title = otherEmail;
-            }).catch((error) => {
-              console.error("Error getting username for", otherEmail, error);
-              nameSpan.textContent = otherEmail;
-              dmEl.title = otherEmail;
+              const nameSpan = document.createElement("span");
+              nameContainer.appendChild(nameSpan);
+
+              // Check for unread messages
+              const dmReadStatus = readStatus[pairKey] || {};
+              const lastReadId = dmReadStatus.lastReadId || "";
+
+              // Get the latest message in this DM
+              const dmRef = ref(database, `dms/${pairKey}`);
+              get(dmRef).then((dmSnapshot) => {
+                const dmData = dmSnapshot.val() || {};
+                const messageIds = Object.keys(dmData).filter(k => k !== "__meta__");
+
+                if (messageIds.length > 0) {
+                  // Sort by timestamp
+                  messageIds.sort((a, b) => {
+                    const timeA = dmData[a].Date ? new Date(dmData[a].Date).getTime() : 0;
+                    const timeB = dmData[b].Date ? new Date(dmData[b].Date).getTime() : 0;
+                    return timeA - timeB;
+                  });
+
+                  const latestId = messageIds[messageIds.length - 1];
+                  const latestMsg = dmData[latestId];
+
+                  // Check if there are unread messages
+                  if (latestId !== lastReadId && latestMsg.User !== email) {
+                    const unreadIndicator = document.createElement("div");
+                    unreadIndicator.className = "unread-indicator";
+                    unreadIndicator.style.width = "10px";
+                    unreadIndicator.style.height = "10px";
+                    unreadIndicator.style.borderRadius = "50%";
+                    unreadIndicator.style.backgroundColor = "#f44336";
+                    unreadIndicator.style.marginLeft = "5px";
+                    nameContainer.appendChild(unreadIndicator);
+                  }
+                }
+              }).catch((error) => {
+                console.error("Error getting DM data for", pairKey, error);
+              });
+
+              // Get username for display
+              getUsernameFromEmail(otherEmail).then(username => {
+                nameSpan.textContent = username || otherEmail;
+                dmEl.title = otherEmail;
+              }).catch((error) => {
+                console.error("Error getting username for", otherEmail, error);
+                nameSpan.textContent = otherEmail;
+                dmEl.title = otherEmail;
+              });
+
+              dmEl.appendChild(nameContainer);
+
+              dmEl.onclick = function () {
+                console.log("Opening DM:", pairKey);
+                // Deselect all channels and DMs
+                document.querySelectorAll(".server").forEach((s) => s.classList.remove("selected"));
+                document.querySelectorAll(".dm").forEach((d) => d.classList.remove("selected"));
+                this.classList.add("selected");
+
+                // Remove unread indicator when opening
+                const indicator = this.querySelector(".unread-indicator");
+                if (indicator) {
+                  indicator.remove();
+                }
+
+                openDM(pairKey);
+              };
+
+              dmList.appendChild(dmEl);
             });
-
-            dmEl.appendChild(nameContainer);
-
-            dmEl.onclick = function () {
-              console.log("Opening DM:", pairKey);
-              // Deselect all channels and DMs
-              document.querySelectorAll(".server").forEach((s) => s.classList.remove("selected"));
-              document.querySelectorAll(".dm").forEach((d) => d.classList.remove("selected"));
-              this.classList.add("selected");
-
-              openDM(pairKey);
-            };
-
-            dmList.appendChild(dmEl);
-
-            // Update unread count for this DM
-            updateDMUnread(pairKey);
+          }).catch((error) => {
+            console.error("Error getting read status:", error);
+            // Show error message in the DM list
+            dmList.innerHTML = "";
+            const errorMsg = document.createElement("div");
+            errorMsg.className = "error-dms-message";
+            errorMsg.textContent = "Could not load DMs";
+            errorMsg.style.fontSize = "12px";
+            errorMsg.style.fontStyle = "italic";
+            errorMsg.style.color = "#f44336";
+            errorMsg.style.padding = "5px";
+            dmList.appendChild(errorMsg);
           });
         } catch (innerError) {
           console.error("Error processing DMs:", innerError);
@@ -846,19 +821,6 @@
         errorMsg.style.color = "#f44336";
         errorMsg.style.padding = "5px";
         dmList.appendChild(errorMsg);
-      });
-
-      // Listen for changes in readDMs to update unread counts
-      const readDMsRef = ref(database, `Accounts/${myKey}/readDMs`);
-      if (readDMsListener) {
-        readDMsListener();
-        readDMsListener = null;
-      }
-      readDMsListener = onValue(readDMsRef, (snapshot) => {
-        const readStatus = snapshot.val() || {};
-        Object.keys(readStatus).forEach(pairKey => {
-          updateDMUnread(pairKey);
-        });
       });
     } catch (error) {
       console.error("Error in populateDMList:", error);
@@ -1114,11 +1076,11 @@
       if (latest) {
         await markMessagesAsRead(pairKey, latest, true);
 
-        // Remove unread badge from sidebar
+        // Remove unread indicator from sidebar
         if (dmElement) {
-          const badge = dmElement.querySelector(".unread-badge");
-          if (badge) {
-            badge.remove();
+          const indicator = dmElement.querySelector(".unread-indicator");
+          if (indicator) {
+            indicator.remove();
           }
         }
       }
@@ -2382,11 +2344,7 @@
 
     const readPath = isDM ? `Accounts/${email.replace(/\./g, "*")}/readDMs/${chatName}` : `Accounts/${email.replace(/\./g, "*")}/readMessages/${chatName}`;
     const readMessagesRef = ref(database, readPath);
-    if (isDM) {
-      await set(readMessagesRef, {lastReadId: lastMessageId});
-    } else {
-      await set(readMessagesRef, lastMessageId);
-    }
+    await set(readMessagesRef, lastMessageId);
 
     document.querySelectorAll(".message").forEach((msg) => {
       const msgId = msg.dataset.lastMessageId;
@@ -7396,36 +7354,6 @@
           }
         }
       }
-
-      // Mark DMs as read
-      const myKey = email.replace(/\./g, "*");
-      const dmsRef = ref(database, "dms");
-      const dmsSnapshot = await get(dmsRef);
-      const allDMs = dmsSnapshot.val() || {};
-
-      for (const pairKey in allDMs) {
-        if (allDMs[pairKey].__meta__ && allDMs[pairKey].__meta__.participants && allDMs[pairKey].__meta__.participants[myKey]) {
-          const dmRef = ref(database, `dms/${pairKey}`);
-          const dmSnapshot = await get(dmRef);
-          const messages = dmSnapshot.val();
-          if (messages) {
-            const ids = Object.keys(messages).filter(k => k !== "__meta__").sort();
-            const latest = ids[ids.length - 1];
-            if (latest) {
-              const readDMRef = ref(database, `Accounts/${myKey}/readDMs/${pairKey}`);
-              await set(readDMRef, {lastReadId: latest});
-            }
-          }
-        }
-      }
-
-      // Remove all DM badges
-      document.querySelectorAll(".dm .unread-badge").forEach((badge) => {
-        badge.remove();
-      });
-      document.querySelectorAll(".dm").forEach((dm) => {
-        dm.setAttribute("data-unread", "0");
-      });
 
       updateReadAllStatus();
       updateFavicon();
