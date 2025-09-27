@@ -1528,10 +1528,10 @@
     </div>
     <div id="chat-screen" class="chat hidden">
       <div id="settings-bar">
+          <button id="hide-left-sidebar" class="setting-button">☰</button>
           <button id="customize-profile" class="setting-button">👤</button>
           <button id="dark-mode" class="setting-button">${isDark ? "☀️" : "🌙"}</button>
           <button id="read-all" class="setting-button">📖</button>
-          <button id="hide-left-sidebar" class="setting-button">☰</button>
           <button id="user-activity" class="setting-button">👥</button>
           <div class="dropdown-container">
             <button id="g-setting" class="setting-button">✍️</button>
