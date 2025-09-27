@@ -2821,7 +2821,7 @@
           })
           .join("\n");
 
-        // Different prompt for Jimmy vs. other users
+// Different prompt for Jimmy vs. other users
         let fullPrompt;
 
         if (email === "jimmyh30@lakesideschool.org") {
@@ -2839,6 +2839,7 @@
           try {
             const response = await fetch(
               "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" +
+              "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" +
                 API_KEY,
               {
                 method: "POST",
@@ -2965,7 +2966,7 @@
         if (!successfulRequest) {
           aiReply = message; // Keep original message if AI processing fails
         }
-        
+
         // Special case for jimmyh30@lakesideschool.org
         if (
           email === "jimmyh30@lakesideschool.org" &&
