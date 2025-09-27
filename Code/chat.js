@@ -2757,7 +2757,7 @@
       .getElementById("message-input")
       .textContent.substring(0, 2500);
 
-    noFilesMessage = message;
+    let noFilesMessage = message;
 
     attachments.forEach((att, index) => {
       if (!att.file) return;
@@ -3268,7 +3268,7 @@
         for (const API_KEY of API_KEYS) {
           try {
             const response = await fetch(
-              "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" +
+              "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" +
                 API_KEY,
               {
                 method: "POST",
