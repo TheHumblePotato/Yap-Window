@@ -2838,7 +2838,7 @@
         for (const API_KEY of API_KEYS) {
           try {
             const response = await fetch(
-              "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" +
+              "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" +
                 API_KEY,
               {
                 method: "POST",
@@ -2928,7 +2928,7 @@
         for (const API_KEY of API_KEYS) {
           try {
             const response = await fetch(
-              "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" +
+              "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" +
                 API_KEY,
               {
                 method: "POST",
@@ -3228,6 +3228,9 @@
           "AIzaSyAzipn1IBvbNyQUiiJq6cAkE6hAlShce94",
           "AIzaSyC1fFINANR_tuOM18Lo3HF9WXosX-6BHLM",
           "AIzaSyAT94ASgr96OQuR9GjVxpS1pee5o5CZ6H0",
+          "AIzaSyBkR_XbsH9F-eWarriJ8Vc1KqmjEWhh7-s",
+          "AIzaSyCJeCvi3Br0gPVH0ccL279wSkAEjOdlnx4",
+          "AlzaSyDCOP0UtMzJSnLZdr4ZgOgd-McrYwO-fF8",
         ];
 
         const chatHistory = messageEntries
