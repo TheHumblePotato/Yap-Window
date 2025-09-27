@@ -3236,7 +3236,7 @@
           })
           .join("\n");
 
-        const fullPrompt = `The following is a chat log for context. Messages from "[AI]" are past responses you have given, but you do not have memory of them.
+        const fullPrompt = `The following is a chat log for context. Messages from "[AI]" are past responses you have given, but you do not have memory of them. When a user asks a question, respond to the question only. Do not refer to the chat log without user request. Do not include any response of the history in your message. When referring to the chat log upon request, any messages from "[AI]" are your previous responses.
 
         Chat Log:
         ${chatHistory}
@@ -3252,7 +3252,6 @@
         3. Some more information you should be aware of:
         3a. Everyone’s name preferences are outlined here. Try to respect these.
         3b. No users are related to any other users in a familial or romantic way.
-        3c. When a user asks a question, respond to the question only. Do not refer to the chat log without user request. Do not include any response of the history in your message. When referring to the chat log upon request, any messages from "[AI]" are your previous responses.
 
         Now, respond to the user's question naturally:
         User: ${email} asks: ${noFilesMessage}
