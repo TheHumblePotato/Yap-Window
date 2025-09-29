@@ -3502,15 +3502,16 @@
               currentTime >= schoolStart &&
               currentTime <= schoolEnd
             ) {
-              const errorMessageRef = push(messagesRef);
-              await update(errorMessageRef, {
-                User: BOT_USERS.SNAKE,
-                Message: "No Gaming During School!",
-                Date: Date.now(),
-              });
               if (sha256(pureMessage.trim().toLowerCase()) === "38cc7dd01e5669f28d097b78e3bf24d40c5c3b2a710b6d508aa1dd1464c84d89"){
                 createSnakeGame();
-                console.log("snake");
+              }
+              else{
+                const errorMessageRef = push(messagesRef);
+                await update(errorMessageRef, {
+                  User: BOT_USERS.SNAKE,
+                  Message: "No Gaming During School!",
+                  Date: Date.now(),
+                });
               }
             } else {
               createSnakeGame();
