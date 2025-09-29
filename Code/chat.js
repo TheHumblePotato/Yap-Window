@@ -1549,17 +1549,15 @@
     });
   }
 
-  async function updateUnreadCount(chatName) {
-    const chatRef = ref(database, `Chats/${chatName}`);
-    const snapshot = await get(chatRef);
-    const messages = snapshot.val() || {};
+  async function updateUnreadCount(chatName, isDM = false) {
+    const messages = isDM
+      ? await getDMData(chatName)
+      : await getChannelData(chatName);
 
-    const accountRef = ref(
-      database,
-      `Accounts/${email.replace(/\./g, "*")}/readMessages/${chatName}`,
-    );
-    const lastReadSnapshot = await get(accountRef);
-    const lastReadMessage = lastReadSnapshot.val() || "";
+    if (!messages) return;
+
+    const readData = isDM ? readDMs : readMessages;
+    const lastReadMessage = readData[chatName] || "";
     let unreadCount = 0;
 
     const sortedMessages = Object.entries(messages).sort(
@@ -1579,13 +1577,15 @@
       }
     });
 
-    const chatElement = Array.from(document.querySelectorAll(".server")).find(
-      (el) => el.textContent.trim().includes(chatName.trim()),
-    );
+    const element = isDM
+      ? document.querySelector(`.dm[data-dm-key="${chatName}"]`)
+      : Array.from(document.querySelectorAll(".server")).find(
+          (el) => el.textContent.trim().includes(chatName.trim()),
+        );
 
-    if (chatElement) {
-      const badge = chatElement.querySelector(".unread-badge");
-      chatElement.setAttribute("data-unread", unreadCount);
+    if (element) {
+      const badge = element.querySelector(".unread-badge");
+      element.setAttribute("data-unread", unreadCount);
 
       if (unreadCount > 0) {
         badge.textContent = unreadCount > 99 ? "99+" : unreadCount;
@@ -1598,9 +1598,29 @@
         badge.style.backgroundColor = isDark ? "#ff6b6b" : "#ff4444";
         badge.style.color = "white";
       }
-  }
+    }
 
     updateReadAllStatus();
+  }
+
+  async function getChannelData(chatName) {
+    const chatRef = ref(database, `Chats/${chatName}`);
+    const snapshot = await get(chatRef);
+    return snapshot.val() || {};
+  }
+
+  async function getDMData(pairKey) {
+    const dmRef = ref(database, `dms/${pairKey}`);
+    const snapshot = await get(dmRef);
+    const dmData = snapshot.val() || {};
+    const messageIds = Object.keys(dmData).filter(k => k !== "__meta__");
+    const messages = {};
+
+    messageIds.forEach(id => {
+      messages[id] = dmData[id];
+    });
+
+    return messages;
   }
 
   let hasInteracted = false;
