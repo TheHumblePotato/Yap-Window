@@ -36,14 +36,27 @@
         // Wait for auth state to be available
         if (typeof auth !== 'undefined' && auth.currentUser) {
             myId = auth.currentUser.uid;
+            console.log('Voice chat initialized with authenticated user:', auth.currentUser.email);
         } else if (typeof auth !== 'undefined') {
             // Listen for auth state changes
             auth.onAuthStateChanged((user) => {
                 if (user) {
                     myId = user.uid;
-                    console.log('User authenticated:', myId);
+                    console.log('User authenticated for voice chat:', user.email, myId);
+                } else {
+                    myId = null;
+                    console.log('User signed out, voice chat disabled');
+                    // Close voice chat if user signs out
+                    if (currentRoomId) {
+                        leaveVoiceRoom();
+                    }
+                    if (isMenuOpen) {
+                        closeVoiceChatMenu();
+                    }
                 }
             });
+        } else {
+            console.warn('Firebase auth not available - voice chat will require manual authentication');
         }
         
         setupVoiceChatEvents();
@@ -328,6 +341,17 @@
             return;
         }
         
+        // Check authentication before opening menu
+        if (typeof auth === 'undefined' || !auth.currentUser) {
+            showError('Please log in first to use voice chat');
+            return;
+        }
+        
+        if (!auth.currentUser.emailVerified) {
+            showError('Please verify your email before using voice chat');
+            return;
+        }
+        
         if (menu.classList.contains('hidden')) {
             menu.classList.remove('hidden');
             menu.style.display = 'flex';
@@ -363,12 +387,38 @@
             return;
         }
         
+        // Check authentication before attempting to load rooms
+        if (typeof auth === 'undefined' || !auth.currentUser) {
+            console.error('User not authenticated - cannot load rooms');
+            showError('Please log in to view voice chat rooms');
+            return;
+        }
+        
+        // Check email verification
+        if (!auth.currentUser.emailVerified) {
+            console.error('User email not verified - cannot load rooms');
+            showError('Please verify your email before using voice chat');
+            return;
+        }
+        
+        console.log('Loading rooms for authenticated user:', auth.currentUser.email);
+        
         const roomsRef = ref(database, 'rooms');
         get(roomsRef).then((snapshot) => {
+            console.log('Successfully loaded rooms data');
             const rooms = snapshot.val();
             displayRoomsList(rooms);
         }).catch((error) => {
             console.error('Error loading rooms:', error);
+            
+            // Provide more specific error handling
+            if (error.code === 'PERMISSION_DENIED') {
+                showError('Permission denied: You may need to verify your email or contact support');
+            } else if (error.code === 'NETWORK_ERROR') {
+                showError('Network error: Please check your internet connection');
+            } else {
+                showError(`Failed to load rooms: ${error.message || 'Unknown error'}`);
+            }
         });
     }
 

@@ -33,7 +33,7 @@
       var { initializeApp } = await import(
         "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js"
       );
-      var { getDatabase, get, ref, set, onValue, push, update, remove, child } =
+      var { getDatabase, get, ref, set, onValue, push, update, remove, child, onChildAdded, onChildRemoved } =
         await import(
           "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js"
         );
@@ -91,6 +91,8 @@
             update,
             remove,
             child,
+            onChildAdded,
+            onChildRemoved,
           };
           const chatPrimaryUrl = buildRawUrl("Code/chat.js", true);
             const chatFallbackUrl =
@@ -105,7 +107,7 @@
             .then((chatCode) => {
               const wrappedChatCode = `
               (function(firebaseStuff) {
-                const { database, auth, app, getDatabase, get, ref, set, onValue, push, update, remove, child  } = firebaseStuff;
+                const { database, auth, app, getDatabase, get, ref, set, onValue, push, update, remove, child, onChildAdded, onChildRemoved  } = firebaseStuff;
                 ${chatCode}
               })(firebaseStuff);
             `;
