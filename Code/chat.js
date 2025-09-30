@@ -6211,7 +6211,7 @@
       const allMessageIds = Object.keys(messages).sort();
       if (allMessageIds.length > 0) {
         const latestMessageId = allMessageIds[allMessageIds.length - 1];
-        await markMessagesAsRead(currentChat, latestMessageId);
+        await markMessagesAsRead(currentChat, latestMessageId, isDMActive());
       }
     }
     document.getElementById("bookmarklet-gui").scrollTop = 0;
