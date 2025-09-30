@@ -1084,10 +1084,13 @@
     const snap = await get(dmRef);
     const messages = snap.val();
     if (messages) {
-      const ids = Object.keys(messages).filter((k)=>k!=="__meta__").sort();
-      const latest = ids[ids.length - 1];
+      const messageEntries = Object.keys(messages)
+        .filter(k => k !== "__meta__")
+        .map(id => ({ id, date: messages[id].Date }))
+        .sort((a, b) => new Date(a.date) - new Date(b.date));
+      const latest = messageEntries[messageEntries.length - 1];
       if (latest) {
-        await markMessagesAsRead(pairKey, latest, true);
+        await markMessagesAsRead(pairKey, latest.id, true);
 
         // Update unread badge from sidebar
         if (dmElement) {
