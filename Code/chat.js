@@ -1344,7 +1344,7 @@
 
       const messageDate = new Date(message.Date);
       const username = message.User;
-      const lastReadMessage = readMessages[pairKey] || "";
+      const lastReadMessage = (currentDMKey ? readDMs : readMessages)[pairKey] || "";
 
       const wasNearBottom =
         messagesDiv.scrollHeight -
@@ -2159,7 +2159,7 @@
 
       const messageDate = new Date(message.Date);
       const username = message.User;
-      const lastReadMessage = readMessages[chatName] || "";
+      const lastReadMessage = (currentDMKey ? readDMs : readMessages)[chatName] || "";
 
       const wasNearBottom =
         messagesDiv.scrollHeight -
