@@ -1,6 +1,7 @@
 (async function () {
   var dayOff = false;
   var readMessages = {};
+  var readDMs = {};
   var readAll = true;
   var isDark = false;
   let pendingFormOptions = null;
@@ -20,7 +21,88 @@
   };
   let ADMIN_LIST = [];
   const email = auth.currentUser.email;
-  console.log(email);
+
+  console.log(auth.currentUser.email);
+
+  function formatDate(dateString) {
+    const messageDate = new Date(dateString);
+    const now = new Date();
+
+    const messageMidnight = new Date(
+      messageDate.getFullYear(),
+      messageDate.getMonth(),
+      messageDate.getDate(),
+    );
+    const todayMidnight = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+    );
+
+    const diffTime = todayMidnight - messageMidnight;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) {
+      return `Today ${messageDate.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`;
+    } else if (diffDays === 1) {
+      return `Yesterday ${messageDate.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`;
+    } else if (diffDays <= 10){
+      return `${diffDays} days ago ${messageDate.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`;
+    } else {
+      return `${getDate(dateString)} ${messageDate.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`;
+    }
+  }
+
+  function getDate(myDate){
+    const date = new Date(myDate);
+    const month = date.getMonth() + 1; // Get month and add 1 (September is 8, so 8 + 1 = 9)
+    const day = date.getDate();     // Get day (16)
+    const year = date.getFullYear(); // Get full year (2025)
+
+    // Pad month and day with leading zeros if they are single digits
+    const formattedMonth = month < 10 ? '0' + month : month;
+    const formattedDay = day < 10 ? '0' + day : day;
+
+    const formattedDate = `${formattedMonth}/${formattedDay}/${year}`;
+
+    return formattedDate;
+  }
+  
+  // Load Voice Chat functionality
+  try {
+    const ts = Math.floor(Date.now() / 1000);
+    const vcPrimaryUrl = `https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/vc.js?token=${ts}`;
+    const vcFallbackUrl = "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/vc.js";
+    
+    let vcResponse;
+    try {
+      vcResponse = await fetch(vcPrimaryUrl);
+      if (!vcResponse.ok) {
+        vcResponse = await fetch(vcFallbackUrl);
+      }
+    } catch (error) {
+      vcResponse = await fetch(vcFallbackUrl);
+    }
+    
+    const vcCode = await vcResponse.text();
+    eval(vcCode);
+    console.log('Voice chat loaded successfully');
+  } catch (error) {
+    console.error('Failed to load voice chat:', error);
+  }
+  
   async function getAdmins() {
     const pathRef = ref(database, '/Chat Info/Staff chat (ADMIN, MOD)/Members');
     try {
@@ -49,6 +131,20 @@
     alert("Please verify your email before using chat.");
     return;
   }
+
+  const vcPrimaryUrl = "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/vc.js?token=$(date%20+%s)";
+  const vcFallbackUrl = "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/vc.js?token=$(date%20+%s)";
+
+  fetch(vcPrimaryUrl)
+      .then(r => {
+          if (!r.ok) return fetch(vcFallbackUrl);
+          return r;
+      })
+      .then(r => r.text())
+      .then(code => {
+          eval(code); // vc.js functions now available globally
+      });
+
   getAdmins();
   const sc = document.createElement("script");
   sc.setAttribute(
@@ -67,6 +163,7 @@
   chatScreen.classList.remove("hidden");
   dayOff = isWeekend();
 
+
   async function initializeReadMessages() {
     const readMessagesRef = ref(
       database,
@@ -74,11 +171,16 @@
     );
     const snapshot = await get(readMessagesRef);
     readMessages = snapshot.val() || {};
+
+    const readDMsRef = ref(database, `Accounts/${email.replace(/\./g, "*")}/readDMs`);
+    const dmSnapshot = await get(readDMsRef);
+    readDMs = dmSnapshot.val() || {};
+
     return readMessages;
   }
 
   function updateReadAllStatus() {
-    const allChats = document.querySelectorAll(".server");
+    const allChats = document.querySelectorAll(".server, .dm");
     readAll = true;
 
     allChats.forEach((chat) => {
@@ -395,6 +497,25 @@
 
   var currentChat = "General";
   let currentChatListener = null;
+  let currentChatTypingListener = null;
+  // DM context state
+  let currentDMKey = null; // null means channel mode; otherwise `/dms/{pairKey}`
+  let currentDMListener = null;
+  let currentDMTypingListener = null;
+  let dmListListener = null;
+
+  function buildPairKey(emailA, emailB) {
+    const a = (emailA || "").trim().toLowerCase();
+    const b = (emailB || "").trim().toLowerCase();
+    if (!a || !b) return "";
+    const safe = (x) => x.replace(/\./g, "*");
+    const arr = [safe(a), safe(b)].sort();
+    return `${arr[0]}_${arr[1]}`; // Using underscore instead of comma as separator
+  }
+
+  function isDMActive() {
+    return !!currentDMKey;
+  }
 
   async function populateSidebar(chatData) {
     if (Object.keys(readMessages).length === 0) {
@@ -445,6 +566,7 @@
 
         sidebar.appendChild(chatElement);
         chatElements.set(chatName, chatElement);
+
       }
     }
 
@@ -455,11 +577,19 @@
         const lastReadMessage = readMessages[chatName] || "";
         let unreadCount = 0;
 
-        Object.entries(messages).forEach(([messageId, message]) => {
-          if (
-            message.User !== email &&
-            (!lastReadMessage || messageId > lastReadMessage)
-          ) {
+        const sortedMessages = Object.entries(messages).sort(
+          ([, a], [, b]) => new Date(a.Date) - new Date(b.Date),
+        );
+
+        let lastReadIndex = -1;
+        sortedMessages.forEach(([messageId, message], index) => {
+          if (messageId === lastReadMessage) {
+            lastReadIndex = index;
+          }
+        });
+
+        sortedMessages.forEach(([messageId, message], index) => {
+          if (message.User !== email && index > lastReadIndex) {
             unreadCount++;
           }
         });
@@ -479,17 +609,958 @@
     updateReadAllStatus();
   }
 
-  async function updateUnreadCount(chatName) {
-    const chatRef = ref(database, `Chats/${chatName}`);
-    const snapshot = await get(chatRef);
-    const messages = snapshot.val() || {};
+  async function populateDMList() {
+    try {
+      const dmList = document.getElementById("dm-list");
+      if (!dmList) {
+        console.log("DM list element not found");
+        return;
+      }
 
-    const accountRef = ref(
-      database,
-      `Accounts/${email.replace(/\./g, "*")}/readMessages/${chatName}`,
-    );
-    const lastReadSnapshot = await get(accountRef);
-    const lastReadMessage = lastReadSnapshot.val() || "";
+      // Wait for email to be available
+      if (!email) {
+        console.log("Email not available yet, waiting for auth...");
+        await new Promise(res => {
+          const unsubscribe = onAuthStateChanged(auth, (user) => {
+            if (user) {
+              email = user.email;
+              unsubscribe();
+              res();
+            }
+          });
+        });
+      }
+
+      const myKey = email.replace(/\./g, "*");
+      console.log("Populating DM list for user:", myKey);
+
+      // Clear the list without adding a header
+      dmList.innerHTML = "";
+
+      // Show loading message initially
+      const loadingMsg = document.createElement("div");
+      loadingMsg.className = "loading-dms-message";
+      loadingMsg.textContent = "Loading DMs...";
+      loadingMsg.style.fontSize = "12px";
+      loadingMsg.style.fontStyle = "italic";
+      loadingMsg.style.color = "#888";
+      loadingMsg.style.padding = "5px";
+      dmList.appendChild(loadingMsg);
+
+      // Use onValue to keep DM list updated in real-time
+      const dmsRef = ref(database, `dms`);
+      let isInitialLoad = true;
+
+      if (dmListListener) {
+        dmListListener();
+        dmListListener = null;
+      }
+      dmListListener = onValue(dmsRef, (snapshot) => {
+        try {
+          const all = snapshot.val() || {};
+          console.log("Fetched data:", all);
+
+          // Filter DMs where the current user is a participant
+          const entries = Object.keys(all).filter(pairKey => {
+            // Check if this DM has the current user as a participant
+            if (!all[pairKey] || !all[pairKey].__meta__ || !all[pairKey].__meta__.participants) {
+              return false;
+            }
+            return all[pairKey].__meta__.participants[myKey] === true;
+          });
+
+          console.log("Filtered DM entries for user:", entries);
+
+          // Remove loading message
+          const loadingMsg = dmList.querySelector(".loading-dms-message");
+          if (loadingMsg) loadingMsg.remove();
+
+          if (entries.length === 0) {
+            // Clear the list and show "no DMs" message
+            dmList.innerHTML = "";
+            const noDmsMsg = document.createElement("div");
+            noDmsMsg.className = "no-dms-message";
+            noDmsMsg.textContent = "No direct messages yet";
+            noDmsMsg.style.fontSize = "12px";
+            noDmsMsg.style.fontStyle = "italic";
+            noDmsMsg.style.color = "#888";
+            noDmsMsg.style.padding = "5px";
+            dmList.appendChild(noDmsMsg);
+            return;
+          }
+
+          // Clear the list only if this is not the initial load
+          if (!isInitialLoad) {
+            dmList.innerHTML = "";
+          }
+
+          // Set isInitialLoad to false after first successful load
+          if (isInitialLoad) {
+            isInitialLoad = false;
+          }
+
+          entries.forEach((pairKey) => {
+            const dmEl = document.createElement("div");
+            dmEl.className = "dm";
+            dmEl.style.padding = "8px";
+            dmEl.style.margin = "2px 0";
+            dmEl.style.borderRadius = "4px";
+            dmEl.style.cursor = "pointer";
+            dmEl.style.transition = "background-color 0.2s";
+            dmEl.setAttribute("data-dm-key", pairKey);
+
+            // Split by comma or underscore (supporting both old and new format)
+            const parts = pairKey.includes(",") ? pairKey.split(",") : pairKey.split("_");
+            const other = parts[0] === myKey ? parts[1] : parts[0];
+            const otherEmail = other.replace(/\*/g, ".");
+
+            // Create container for name and unread indicator
+            const nameContainer = document.createElement("div");
+            nameContainer.style.display = "flex";
+            nameContainer.style.justifyContent = "space-between";
+            nameContainer.style.alignItems = "center";
+            nameContainer.style.width = "100%";
+
+            const nameSpan = document.createElement("span");
+            nameContainer.appendChild(nameSpan);
+
+            // Check for unread messages
+            const dmRef = ref(database, `dms/${pairKey}`);
+            onValue(dmRef, (snapshot) => {
+              const dmData = snapshot.val() || {};
+              const messageIds = Object.keys(dmData).filter(k => k !== "__meta__");
+
+              let unreadCount = 0;
+              if (messageIds.length > 0) {
+                // Sort by timestamp
+                messageIds.sort((a, b) => {
+                  const timeA = dmData[a].Date ? new Date(dmData[a].Date).getTime() : 0;
+                  const timeB = dmData[b].Date ? new Date(dmData[b].Date).getTime() : 0;
+                  return timeA - timeB;
+                });
+
+                const dmReadStatus = readDMs[pairKey];
+                const lastReadId = dmReadStatus || "";
+
+                let lastReadIndex = -1;
+                messageIds.forEach((id, index) => {
+                  if (id === lastReadId) {
+                    lastReadIndex = index;
+                  }
+                });
+
+                messageIds.forEach((id, index) => {
+                  const msg = dmData[id];
+                  if (msg.User !== email && index > lastReadIndex) {
+                    unreadCount++;
+                  }
+                });
+              }
+
+              dmEl.setAttribute("data-unread", unreadCount);
+
+              const existingBadge = nameContainer.querySelector(".unread-badge");
+              if (unreadCount > 0) {
+                if (!existingBadge) {
+                  const badge = document.createElement("span");
+                  badge.className = "unread-badge";
+                  badge.style.backgroundColor = isDark ? "#ff6b6b" : "#ff4444";
+                  badge.style.color = "white";
+                  badge.style.borderRadius = "10px";
+                  badge.style.padding = "2px 6px";
+                  badge.style.fontSize = "12px";
+                  badge.style.marginLeft = "5px";
+                  badge.textContent = unreadCount > 99 ? "99+" : unreadCount;
+                  nameContainer.appendChild(badge);
+                } else {
+                  existingBadge.textContent = unreadCount > 99 ? "99+" : unreadCount;
+                  existingBadge.style.display = "inline";
+                }
+              } else {
+                if (existingBadge) {
+                  existingBadge.style.display = "none";
+                }
+              }
+            }, (error) => {
+              console.error("Error listening to DM data for", pairKey, error);
+            });
+
+            // Get username for display
+            getUsernameFromEmail(otherEmail).then(username => {
+              nameSpan.textContent = username || otherEmail;
+              dmEl.title = otherEmail;
+            }).catch((error) => {
+              console.error("Error getting username for", otherEmail, error);
+              nameSpan.textContent = otherEmail;
+              dmEl.title = otherEmail;
+            });
+
+            dmEl.appendChild(nameContainer);
+
+            dmEl.onclick = function () {
+              console.log("Opening DM:", pairKey);
+              // Deselect all channels and DMs
+              document.querySelectorAll(".server").forEach((s) => s.classList.remove("selected"));
+              document.querySelectorAll(".dm").forEach((d) => d.classList.remove("selected"));
+              this.classList.add("selected");
+
+              openDM(pairKey);
+            };
+
+            dmList.appendChild(dmEl);
+          });
+        } catch (innerError) {
+          console.error("Error processing DMs:", innerError);
+          // Show error message in the DM list
+          dmList.innerHTML = "";
+          const errorMsg = document.createElement("div");
+          errorMsg.className = "error-dms-message";
+          errorMsg.textContent = "Could not load DMs";
+          errorMsg.style.fontSize = "12px";
+          errorMsg.style.fontStyle = "italic";
+          errorMsg.style.color = "#f44336";
+          errorMsg.style.padding = "5px";
+          dmList.appendChild(errorMsg);
+        }
+      }, (error) => {
+        console.error("Error loading DMs:", error);
+        // Show error message in the DM list
+        dmList.innerHTML = "";
+        const errorMsg = document.createElement("div");
+        errorMsg.className = "error-dms-message";
+        errorMsg.textContent = "Could not load DMs";
+        errorMsg.style.fontSize = "12px";
+        errorMsg.style.fontStyle = "italic";
+        errorMsg.style.color = "#f44336";
+        errorMsg.style.padding = "5px";
+        dmList.appendChild(errorMsg);
+      });
+    } catch (error) {
+      console.error("Error in populateDMList:", error);
+    }
+  }
+
+  // Create New DM dialog and handler
+  (function initDMCreateButton() {
+    console.log("Initializing DM create button...");
+    const btn = document.getElementById("create-new-dm");
+    console.log("DM button found:", btn);
+    if (!btn) {
+      console.log("DM button not found!");
+      return;
+    }
+    btn.addEventListener("click", async () => {
+      console.log("DM button clicked!");
+      // Show full-screen DM creation UI like channel screen
+      chatScreen.style.display = "none";
+      const dmScreen = document.getElementById("dm-screen");
+      console.log("DM screen found:", dmScreen);
+      dmScreen.classList.remove("hidden");
+      initDMMemberSelector();
+    });
+    console.log("DM button event listener added");
+  })();
+
+  function initDMMemberSelector() {
+    console.log("Initializing DM member selector...");
+    const selected = document.getElementById("dm-selected-members");
+    const list = document.getElementById("dm-members-list");
+    const search = document.getElementById("dm-member-search");
+    const backBtn = document.getElementById("back-dm");
+    const submitBtn = document.getElementById("submit-dm");
+
+    console.log("DM elements found:", { selected, list, search, backBtn, submitBtn });
+
+    selected.innerHTML = "";
+    list.innerHTML = "";
+    search.value = "";
+
+    // Add error message element
+    let errorMsg = document.getElementById("dm-error-message");
+    if (!errorMsg) {
+      errorMsg = document.createElement("div");
+      errorMsg.id = "dm-error-message";
+      errorMsg.style.color = "red";
+      errorMsg.style.display = "none";
+      errorMsg.style.marginTop = "10px";
+      errorMsg.style.fontSize = "14px";
+      document.getElementById("dm-screen").appendChild(errorMsg);
+    }
+    errorMsg.style.display = "none";
+    errorMsg.textContent = "";
+
+    let availableMembers = [];
+
+    async function updateAvailableMembers() {
+      try {
+        console.log("Loading available members from database...");
+        const accountsRef = ref(database, "Accounts");
+        const snapshot = await get(accountsRef);
+        const accounts = snapshot.val();
+        console.log("Accounts loaded:", accounts);
+
+        const selectedEmails = new Set(
+          Array.from(document.querySelectorAll("#dm-selected-members .selected-member"))
+            .map((el) => el.textContent.trim().replace(/×$/, ""))
+            .map((email) => email.replace(/\./g, "*")),
+        );
+
+        availableMembers = Object.keys(accounts)
+          .filter(
+            (accountEmail) =>
+              accountEmail !== email.replace(/\./g, "*") &&
+              !selectedEmails.has(accountEmail),
+          )
+          .map((accountEmail) => ({
+            id: accountEmail,
+            email: accountEmail.replace(/\*/g, "."),
+          }));
+
+        renderMembersList(availableMembers);
+      } catch (error) {
+        console.error("Error loading members:", error);
+        // Fallback to empty list if database access fails
+        availableMembers = [];
+        renderMembersList(availableMembers);
+      }
+    }
+
+    function renderMembersList(members) {
+      list.innerHTML = "";
+      members.forEach((member) => {
+        const option = document.createElement("div");
+        option.className = "member-option";
+        option.textContent = member.email;
+        option.onclick = () => addMember(member);
+        list.appendChild(option);
+      });
+    }
+
+    function addMember(member) {
+      // Clear any existing selection (DM is 1-on-1)
+      selected.innerHTML = "";
+      
+      const memberElement = document.createElement("div");
+      memberElement.className = "selected-member";
+      memberElement.innerHTML = `
+        ${member.email}
+        <span class="remove-member">×</span>
+      `;
+
+      memberElement.querySelector(".remove-member").onclick = () => {
+        memberElement.remove();
+        availableMembers.push(member);
+        availableMembers.sort((a, b) => a.email.localeCompare(b.email));
+        renderMembersList(availableMembers);
+      };
+
+      selected.appendChild(memberElement);
+
+      availableMembers = availableMembers.filter(
+        (availableMember) => availableMember.id !== member.id,
+      );
+      renderMembersList(availableMembers);
+
+      list.style.display = "none";
+      search.value = "";
+    }
+
+    updateAvailableMembers();
+
+    search.onfocus = () => {
+      list.style.display = "block";
+    };
+
+    document.addEventListener("click", (e) => {
+      if (!list.parentElement.contains(e.target)) {
+        list.style.display = "none";
+      }
+    });
+
+    search.oninput = (e) => {
+      const searchTerm = e.target.value.toLowerCase();
+      const filteredMembers = availableMembers.filter((member) =>
+        member.email.toLowerCase().includes(searchTerm),
+      );
+      renderMembersList(filteredMembers);
+      list.style.display = "block";
+    };
+
+    backBtn.onclick = () => {
+      errorMsg.style.display = "none";
+      errorMsg.textContent = "";
+      document.getElementById("dm-screen").classList.add("hidden");
+      chatScreen.style.display = "flex";
+    };
+
+    submitBtn.onclick = async () => {
+      console.log("Submit DM button clicked!");
+      const chosen = selected.querySelector(".selected-member");
+      console.log("Selected member:", chosen);
+      if (!chosen) {
+        alert("Please pick a recipient");
+        return;
+      }
+      const to = chosen.textContent.replace(/\s*×\s*$/, "").trim();
+      console.log("Recipient email:", to);
+      const pairKey = buildPairKey(email, to);
+      console.log("Pair key:", pairKey);
+      const threadRef = ref(database, `dms/${pairKey}`);
+
+      // Clear previous error
+      errorMsg.style.display = "none";
+      errorMsg.textContent = "";
+
+      // Check if DM already exists
+      const dmSnap = await get(threadRef);
+      if (dmSnap.exists()) {
+        errorMsg.textContent = "You already have a DM with this user.";
+        errorMsg.style.display = "block";
+        return;
+      }
+
+      try {
+        // Create the DM thread with participants map
+        const meKey = email.replace(/\./g, "*");
+        const youKey = to.replace(/\./g, "*");
+        console.log("Creating DM thread with participants:", { [meKey]: true, [youKey]: true });
+        await set(threadRef, {
+          __meta__: { createdAt: Date.now(), participants: { [meKey]: true, [youKey]: true } }
+        });
+
+        document.getElementById("dm-screen").classList.add("hidden");
+        chatScreen.style.display = "flex";
+        await populateDMList(); // Refresh DM list
+        await openDM(pairKey);
+      } catch (error) {
+        console.error("Error creating DM:", error);
+        alert("Error creating DM. Please check your Firebase rules and try again.");
+      }
+    };
+  }
+
+  async function openDM(pairKey) {
+    const me = email.replace(/\./g, "*");
+    if (!pairKey.includes(me)) return; // client-side guard: only allow own DMs
+    currentDMKey = pairKey;
+
+    // Deselect channels and other DMs
+    document.querySelectorAll(".server").forEach((s) => s.classList.remove("selected"));
+    document.querySelectorAll(".dm").forEach((d) => d.classList.remove("selected"));
+
+    // Select the current DM in sidebar
+    const dmElement = document.querySelector(`.dm[data-dm-key="${pairKey}"]`);
+    if (dmElement) {
+      dmElement.classList.add("selected");
+    }
+
+    // Update header to show DM recipient
+    const parts = pairKey.includes(",") ? pairKey.split(",") : pairKey.split("_");
+    const otherKey = parts[0] === me ? parts[1] : parts[0];
+    const otherEmail = otherKey.replace(/\*/g, ".");
+
+    // Update channel name display
+    const channelNameDisplay = document.getElementById("channel-name");
+    if (channelNameDisplay) {
+      getUsernameFromEmail(otherEmail).then(username => {
+        channelNameDisplay.textContent = username || otherEmail;
+      });
+    }
+
+    // Clear messages
+    const messagesDiv = document.getElementById("messages");
+    messagesDiv.innerHTML = "";
+    currentChat = pairKey; // Set currentChat for DM context
+    currentDMKey = pairKey;
+
+    // Stop prior listeners
+    if (currentChatListener) { currentChatListener(); currentChatListener = null; }
+    if (currentChatTypingListener) { currentChatTypingListener(); currentChatTypingListener = null; }
+    if (currentDMListener) { currentDMListener(); currentDMListener = null; }
+    if (currentDMTypingListener) { currentDMTypingListener(); currentDMTypingListener = null; }
+
+    // Mark read on open
+    const dmRef = ref(database, `dms/${pairKey}`);
+    const snap = await get(dmRef);
+    const messages = snap.val();
+    if (messages) {
+      const messageEntries = Object.keys(messages)
+        .filter(k => k !== "__meta__")
+        .map(id => ({ id, date: messages[id].Date }))
+        .sort((a, b) => new Date(a.date) - new Date(b.date));
+      const latest = messageEntries[messageEntries.length - 1];
+      if (latest) {
+        await markMessagesAsRead(pairKey, latest.id, true);
+
+        // Update unread badge from sidebar
+        if (dmElement) {
+          const badge = dmElement.querySelector(".unread-badge");
+          if (badge) {
+            badge.textContent = "0";
+            badge.style.display = "none";
+          }
+          dmElement.setAttribute("data-unread", "0");
+        }
+      }
+    }
+
+    // Typing indicators: listen for typing presence in this DM
+    const typingRefDM = ref(database, `TypingDM/${pairKey}`);
+    // Persistent maps to store per-user line elements so we don't recreate them
+    // on every typing snapshot update. Keeping the dot elements stable prevents
+    // CSS animations from restarting.
+    const typingNodesAbove = new Map();
+    const typingNodesBottom = new Map();
+    async function renderTypingIndicators(snapshot) {
+      const data = snapshot.val() || {};
+      const typingKeys = Object.keys(data).filter((k) => k !== email.replace(/\./g, "*"));
+      const messagesDiv = document.getElementById("messages");
+
+      // Create bottom typing indicator element if it doesn't exist
+      let bottom = document.getElementById("typing-indicator-bottom");
+      if (!bottom) {
+        bottom = document.createElement('div');
+        bottom.id = 'typing-indicator-bottom';
+        bottom.className = 'typing-indicator';
+        bottom.innerHTML = '<div id="typing-indicator-bottom-text"></div>';
+      }
+
+      // Resolve display names for typing users. Prefer the username field stored in the Typing entry;
+      // if missing, fall back to a DB lookup which returns the account Username or the email local-part.
+      // Resolve display names for typing users, but keep their keys so we can
+      // reuse existing DOM elements and avoid restarting the dot animation on every update.
+      const entries = await Promise.all(
+        typingKeys.slice(0, 3).map(async (key) => {
+          const entry = data[key] || {};
+          if (entry.username && typeof entry.username === "string" && entry.username.trim() !== "") {
+            return { key, name: entry.username };
+          }
+          // key is stored with '*' for dots; convert back to a normal email before lookup
+          const candidateEmail = key.replace(/\*/g, ".");
+          try {
+            const resolved = await getUsernameFromEmail(candidateEmail);
+            return { key, name: resolved || (candidateEmail.includes("@") ? candidateEmail.split("@")[0] : candidateEmail) };
+          } catch (err) {
+            return { key, name: candidateEmail.includes("@") ? candidateEmail.split("@")[0] : candidateEmail };
+          }
+        }),
+      );
+
+      // Update above-input indicator (each name gets its own line with animated dots)
+      const above = document.getElementById("typing-above-input");
+      const aboveText = document.getElementById("typing-above-input-text");
+      if (above) {
+        if (entries.length === 0) {
+          above.style.display = "none";
+        } else {
+          above.style.display = "flex";
+          if (aboveText) {
+            // remove any static/top-level dots that were placed in the markup
+            // (only remove immediate children named .typing-dots, not dots inside per-line elements)
+            Array.from(above.children)
+              .filter((c) => c.classList && c.classList.contains('typing-dots'))
+              .forEach((d) => d.remove());
+
+            // Ensure container is columnar
+            aboveText.style.display = "flex";
+            aboveText.style.flexDirection = "column";
+            aboveText.style.rowGap = "6px";
+
+            // If aboveText currently only contains the default text node, clear it once
+            if (aboveText.children.length === 0 && aboveText.textContent.trim()) {
+              aboveText.innerHTML = "";
+            }
+
+            // Use persistent map to avoid recreating elements
+            // Ensure container is prepared (don't clear it)
+            for (const { key, name } of entries) {
+              if (typingNodesAbove.has(key)) {
+                // update text only
+                const node = typingNodesAbove.get(key);
+                const txt = node.querySelector('.typing-text');
+                if (txt) txt.textContent = `${name} is typing...`;
+                // make visible
+                node.style.visibility = 'visible';
+                node.style.opacity = '1';
+              } else {
+                const line = document.createElement('div');
+                line.dataset.typingKey = key;
+                line.style.display = 'flex';
+                line.style.alignItems = 'center';
+                line.style.columnGap = '8px';
+                line.style.margin = '2px 0';
+
+                const dots = document.createElement('div');
+                dots.className = 'typing-dots';
+                dots.innerHTML = '<span></span><span></span><span></span>';
+
+                const txt = document.createElement('div');
+                txt.className = 'typing-text';
+                txt.textContent = `${name} is typing...`;
+
+                line.appendChild(dots);
+                line.appendChild(txt);
+                // append once and store in the persistent map
+                aboveText.appendChild(line);
+                typingNodesAbove.set(key, line);
+              }
+            }
+
+            // Hide any nodes that are not currently typing (but keep them in DOM)
+            Array.from(typingNodesAbove.keys()).forEach((k) => {
+              if (!entries.find((e) => e.key === k)) {
+                const n = typingNodesAbove.get(k);
+                if (n) {
+                  n.style.visibility = 'hidden';
+                  n.style.opacity = '0';
+                }
+              }
+            });
+          }
+        }
+      }
+
+      // Update message-area indicator (below last message)
+      const bottomText = document.getElementById("typing-indicator-bottom-text");
+      if (entries.length === 0) {
+        if (bottom && bottom.parentElement) {
+          bottom.parentElement.removeChild(bottom);
+        }
+      } else {
+        // remove any static/top-level dots that might be in the bottom container
+        if (bottom) {
+          Array.from(bottom.children)
+            .filter((c) => c.classList && c.classList.contains('typing-dots'))
+            .forEach((d) => d.remove());
+        }
+
+        if (bottomText) {
+          // If bottomText currently only contains default text, clear once
+          if (bottomText.children.length === 0 && bottomText.textContent.trim()) {
+            bottomText.innerHTML = '';
+          }
+
+          // Use persistent bottom map to avoid recreation
+          for (const { key, name } of entries) {
+            if (typingNodesBottom.has(key)) {
+              const node = typingNodesBottom.get(key);
+              const txt = node.querySelector('.typing-text');
+              if (txt) txt.textContent = `${name} is typing...`;
+              node.style.visibility = 'visible';
+              node.style.opacity = '1';
+            } else {
+              const line = document.createElement('div');
+              line.dataset.typingKey = key;
+              line.style.display = 'flex';
+              line.style.alignItems = 'center';
+              line.style.columnGap = '8px';
+              line.style.margin = '2px 0';
+
+              const dots = document.createElement('div');
+              dots.className = 'typing-dots';
+              dots.innerHTML = '<span></span><span></span><span></span>';
+
+              const txt = document.createElement('div');
+              txt.className = 'typing-text';
+              txt.textContent = `${name} is typing...`;
+
+              line.appendChild(dots);
+              line.appendChild(txt);
+              bottomText.appendChild(line);
+              typingNodesBottom.set(key, line);
+            }
+          }
+
+          // hide leftover bottom nodes
+          Array.from(typingNodesBottom.keys()).forEach((k) => {
+            if (!entries.find((e) => e.key === k)) {
+              const n = typingNodesBottom.get(k);
+              if (n) {
+                n.style.visibility = 'hidden';
+                n.style.opacity = '0';
+              }
+            }
+          });
+        }
+        // ensure bottom is appended to messagesDiv
+        if (!messagesDiv.querySelector("#typing-indicator-bottom")) {
+          messagesDiv.appendChild(bottom);
+          // scroll to bottom if user was near bottom
+          messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+      }
+    }
+
+    const appendedMessages = new Set();
+    let loadedMessages = [];
+    let isLoadingMore = false;
+    let initialLoad = true;
+    let oldestLoadedTimestamp = null;
+    const MESSAGES_PER_LOAD = 100;
+
+    messagesDiv.addEventListener("scroll", async () => {
+      if (
+        messagesDiv.scrollTop <= 100 &&
+        !isLoadingMore &&
+        loadedMessages.length > 0
+      ) {
+        isLoadingMore = true;
+
+        const oldestDisplayedMessage = messagesDiv.firstChild;
+        if (
+          oldestDisplayedMessage &&
+          oldestDisplayedMessage.dataset.messageId
+        ) {
+          const oldestDisplayedId = oldestDisplayedMessage.dataset.messageId;
+          const oldestDisplayedIndex = loadedMessages.findIndex(
+            (msg) => msg.id === oldestDisplayedId,
+          );
+
+          if (oldestDisplayedIndex > 0) {
+            const oldScrollHeight = messagesDiv.scrollHeight;
+            const oldScrollTop = messagesDiv.scrollTop;
+
+            const olderMessages = loadedMessages.slice(
+              Math.max(0, oldestDisplayedIndex - MESSAGES_PER_LOAD),
+              oldestDisplayedIndex,
+            );
+
+            for (let i = olderMessages.length - 1; i >= 0; i--) {
+              await appendSingleMessage(olderMessages[i], true);
+            }
+
+            requestAnimationFrame(() => {
+              const newScrollHeight = messagesDiv.scrollHeight;
+              const heightDifference = newScrollHeight - oldScrollHeight;
+              messagesDiv.scrollTop = oldScrollTop + heightDifference;
+            });
+          }
+        }
+        isLoadingMore = false;
+      }
+    });
+
+    async function appendSingleMessage(message, prepend = false) {
+      if (appendedMessages.has(message.id) || currentDMKey !== pairKey) return;
+
+      if (!message.User || !message.Date || !message.Message) return; // Skip invalid messages
+
+      const messageDate = new Date(message.Date);
+      const username = message.User;
+      const lastReadMessage = (currentDMKey ? readDMs : readMessages)[pairKey] || "";
+
+      const wasNearBottom =
+        messagesDiv.scrollHeight -
+          messagesDiv.scrollTop -
+          messagesDiv.clientHeight <=
+        20;
+
+      let adjacentMessageDiv = null;
+      const timeThreshold = 5 * 60 * 1000;
+
+      if (prepend) {
+        const firstMessage = messagesDiv.firstChild;
+        if (
+          firstMessage &&
+          firstMessage.dataset.user === username &&
+          Math.abs(new Date(firstMessage.dataset.date) - messageDate) <
+            timeThreshold
+        ) {
+          adjacentMessageDiv = firstMessage;
+        }
+      } else {
+        const lastMessage = messagesDiv.lastChild;
+        if (
+          lastMessage &&
+          lastMessage.dataset.user === username &&
+          Math.abs(new Date(lastMessage.dataset.date) - messageDate) <
+            timeThreshold
+        ) {
+          adjacentMessageDiv = lastMessage;
+        }
+      }
+
+      if (adjacentMessageDiv) {
+
+  // Clean up previous typing listener if present
+  if (currentDMTypingListener) currentDMTypingListener();
+  currentDMTypingListener = onValue(typingRefDM, renderTypingIndicators);
+        const messageContent = document.createElement("p");
+        messageContent.innerHTML = message.Message;
+        messageContent.style.marginTop = "5px";
+
+        adjacentMessageDiv.dataset.lastMessageId = message.id;
+
+        if (
+          message.User !== email &&
+          (!lastReadMessage || message.id > lastReadMessage)
+        ) {
+          adjacentMessageDiv.classList.add("unread");
+        }
+        const mentions = messageContent.querySelectorAll(".mention");
+        mentions.forEach((mention) => {
+          if (
+            mention.dataset.email === email ||
+            mention.dataset.email === "Everyone"
+          ) {
+            mention.classList.add("highlight");
+          }
+        });
+        adjacentMessageDiv.appendChild(messageContent);
+      } else {
+        const messageDiv = document.createElement("div");
+        messageDiv.classList.add("message");
+        if (message.User === "w.n.lazypanda5050@gmail.com") {
+          messageDiv.classList.add("winston");
+          if (email === "w.n.lazypanda5050@gmail.com") {
+            messageDiv.classList.add("sent");
+          } else {
+            messageDiv.classList.add("received");
+            if (!lastReadMessage || message.id > lastReadMessage) {
+              messageDiv.classList.add("unread");
+            }
+          }
+        } else if (Object.values(BOT_USERS).includes(message.User)) {
+          messageDiv.classList.add("bot");
+          if (!lastReadMessage || message.id > lastReadMessage) {
+            messageDiv.classList.add("unread");
+          }
+        } else if (message.User === email) {
+          messageDiv.classList.add("sent");
+        } else if (message.User === "[SYSTEM]") {
+          messageDiv.classList.add("system");
+          if (!lastReadMessage || message.id > lastReadMessage) {
+            messageDiv.classList.add("unread");
+          }
+        } else {
+          messageDiv.classList.add("received");
+          if (!lastReadMessage || message.id > lastReadMessage) {
+            messageDiv.classList.add("unread");
+          }
+        }
+
+        messageDiv.style.marginTop = "10px";
+        messageDiv.dataset.messageId = message.id;
+        messageDiv.dataset.user = username;
+        messageDiv.dataset.date = messageDate;
+        messageDiv.dataset.lastMessageId = message.id;
+
+        const headerInfo = document.createElement("p");
+        headerInfo.className = "send-info";
+        headerInfo.textContent = `${username} ${formatDate(message.Date)}`;
+        messageDiv.appendChild(headerInfo);
+
+        getUsernameFromEmail(username).then((displayName) => {
+          if (displayName && displayName !== username) {
+            headerInfo.textContent = `${displayName} (${username}) ${formatDate(message.Date)}`;
+          }
+        });
+
+        const messageContent = document.createElement("p");
+        messageContent.innerHTML = message.Message;
+        messageContent.style.marginTop = "5px";
+
+        const mentions = messageContent.querySelectorAll(".mention");
+        mentions.forEach((mention) => {
+          if (
+            mention.dataset.email === email ||
+            mention.dataset.email === "Everyone"
+          ) {
+            mention.classList.add("highlight");
+          }
+        });
+        messageDiv.appendChild(messageContent);
+
+        if (prepend) {
+          messagesDiv.insertBefore(messageDiv, messagesDiv.firstChild);
+        } else {
+          messagesDiv.appendChild(messageDiv);
+        }
+
+        adjacentMessageDiv = messageDiv;
+      }
+
+      if (!prepend && wasNearBottom) {
+        requestAnimationFrame(() => {
+          messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        });
+      }
+
+      appendedMessages.add(message.id);
+      return adjacentMessageDiv;
+    }
+
+    currentDMListener = onValue(dmRef, async (snapshot) => {
+      const messages = snapshot.val();
+      if (messages && currentDMKey === pairKey) {
+        const sortedMessages = Object.keys(messages)
+          .filter(k => k !== "__meta__")
+          .map((messageId) => ({
+            id: messageId,
+            ...messages[messageId],
+          }))
+          .sort((a, b) => new Date(a.Date) - new Date(b.Date));
+
+        loadedMessages = sortedMessages;
+
+        if (initialLoad) {
+          messagesDiv.innerHTML = "";
+          appendedMessages.clear();
+
+          const recentMessages = sortedMessages.slice(-MESSAGES_PER_LOAD);
+
+          for (const message of recentMessages) {
+            await appendSingleMessage(message, false);
+          }
+
+          initialLoad = false;
+          document.getElementById("messages").scrollTop = 2000000;
+          setTimeout(async () => {
+            await scrollToFirstUnread(pairKey);
+          }, 100);
+        } else {
+          const lastDisplayedMessage = Array.from(messagesDiv.children)
+            .filter((el) => el.dataset.messageId)
+            .pop();
+
+          if (lastDisplayedMessage) {
+            const lastMessageId = lastDisplayedMessage.dataset.lastMessageId;
+            const lastMessageIndex = sortedMessages.findIndex(
+              (msg) => msg.id === lastMessageId,
+            );
+
+            if (lastMessageIndex !== -1) {
+              const newMessages = sortedMessages.slice(lastMessageIndex + 1);
+              for (const message of newMessages) {
+                await appendSingleMessage(message, false);
+              }
+
+              const wasNearBottom =
+                messagesDiv.scrollHeight -
+                  messagesDiv.scrollTop -
+                  messagesDiv.clientHeight <=
+                20;
+              if (wasNearBottom) {
+                requestAnimationFrame(() => {
+                  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                });
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  async function updateUnreadCount(chatName, isDM = false) {
+    const messages = isDM
+      ? await getDMData(chatName)
+      : await getChannelData(chatName);
+
+    if (!messages) return;
+
+    const readData = isDM ? readDMs : readMessages;
+    const lastReadMessage = readData[chatName] || "";
     let unreadCount = 0;
 
     const sortedMessages = Object.entries(messages).sort(
@@ -509,13 +1580,15 @@
       }
     });
 
-    const chatElement = Array.from(document.querySelectorAll(".server")).find(
-      (el) => el.textContent.trim().includes(chatName.trim()),
-    );
+    const element = isDM
+      ? document.querySelector(`.dm[data-dm-key="${chatName}"]`)
+      : Array.from(document.querySelectorAll(".server")).find(
+          (el) => el.textContent.trim().includes(chatName.trim()),
+        );
 
-    if (chatElement) {
-      const badge = chatElement.querySelector(".unread-badge");
-      chatElement.setAttribute("data-unread", unreadCount);
+    if (element) {
+      const badge = element.querySelector(".unread-badge");
+      element.setAttribute("data-unread", unreadCount);
 
       if (unreadCount > 0) {
         badge.textContent = unreadCount > 99 ? "99+" : unreadCount;
@@ -531,6 +1604,26 @@
     }
 
     updateReadAllStatus();
+  }
+
+  async function getChannelData(chatName) {
+    const chatRef = ref(database, `Chats/${chatName}`);
+    const snapshot = await get(chatRef);
+    return snapshot.val() || {};
+  }
+
+  async function getDMData(pairKey) {
+    const dmRef = ref(database, `dms/${pairKey}`);
+    const snapshot = await get(dmRef);
+    const dmData = snapshot.val() || {};
+    const messageIds = Object.keys(dmData).filter(k => k !== "__meta__");
+    const messages = {};
+
+    messageIds.forEach(id => {
+      messages[id] = dmData[id];
+    });
+
+    return messages;
   }
 
   let hasInteracted = false;
@@ -732,6 +1825,44 @@
       listElement.appendChild(userElement);
     });
   }
+  // Typing indicator helpers
+  let __typingTimeout = null;
+  const TYPING_TIMEOUT_MS = 2000;
+
+  async function sendTypingStart() {
+    try {
+      const key = email.replace(/\./g, "*");
+      const path = isDMActive() ? `TypingDM/${currentDMKey}` : `Typing/${currentChat}`;
+      const typingRef = ref(database, `${path}/${key}`);
+      // Attempt to write the user's display name (Username from Accounts) so
+      // other clients can show the proper name instead of the email local-part.
+      const displayName = await getUsernameFromEmail(email);
+      await set(typingRef, {
+        username: displayName || email.split("@")[0],
+        ts: Date.now(),
+      });
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  async function sendTypingStop() {
+    try {
+      const key = email.replace(/\./g, "*");
+      const path = isDMActive() ? `TypingDM/${currentDMKey}/${key}` : `Typing/${currentChat}/${key}`;
+      const typingRef = ref(database, path);
+      await remove(typingRef);
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  function scheduleTypingStop() {
+    if (__typingTimeout) clearTimeout(__typingTimeout);
+    __typingTimeout = setTimeout(() => {
+      sendTypingStop();
+    }, TYPING_TIMEOUT_MS);
+  }
   async function getUsernameFromEmail(userEmail) {
     if (!userEmail) return "";
     if (
@@ -770,6 +1901,7 @@
     const messagesDiv = document.getElementById("messages");
     messagesDiv.innerHTML = "";
     currentChat = chatName;
+    currentDMKey = null; // leaving DM context when loading a channel
 
     const chatRef = ref(database, `Chats/${chatName}`);
     const snapshot = await get(chatRef);
@@ -788,6 +1920,192 @@
     }
 
     const messagesRef = ref(database, `Chats/${chatName}`);
+    // Typing indicators: listen for typing presence in this chat
+  const typingRef = ref(database, `Typing/${chatName}`);
+  // Persistent maps to store per-user line elements so we don't recreate them
+  // on every typing snapshot update. Keeping the dot elements stable prevents
+  // CSS animations from restarting.
+  const typingNodesAbove = new Map();
+  const typingNodesBottom = new Map();
+    async function renderTypingIndicators(snapshot) {
+      const data = snapshot.val() || {};
+      const typingKeys = Object.keys(data).filter((k) => k !== email.replace(/\./g, "*"));
+      const messagesDiv = document.getElementById("messages");
+
+      // Create bottom typing indicator element if it doesn't exist
+      let bottom = document.getElementById("typing-indicator-bottom");
+      if (!bottom) {
+        bottom = document.createElement('div');
+        bottom.id = 'typing-indicator-bottom';
+        bottom.className = 'typing-indicator';
+        bottom.innerHTML = '<div id="typing-indicator-bottom-text"></div>';
+      }
+
+      // Resolve display names for typing users. Prefer the username field stored in the Typing entry;
+      // if missing, fall back to a DB lookup which returns the account Username or the email local-part.
+      // Resolve display names for typing users, but keep their keys so we can
+      // reuse existing DOM elements and avoid restarting the dot animation on every update.
+      const entries = await Promise.all(
+        typingKeys.slice(0, 3).map(async (key) => {
+          const entry = data[key] || {};
+          if (entry.username && typeof entry.username === "string" && entry.username.trim() !== "") {
+            return { key, name: entry.username };
+          }
+          // key is stored with '*' for dots; convert back to a normal email before lookup
+          const candidateEmail = key.replace(/\*/g, ".");
+          try {
+            const resolved = await getUsernameFromEmail(candidateEmail);
+            return { key, name: resolved || (candidateEmail.includes("@") ? candidateEmail.split("@")[0] : candidateEmail) };
+          } catch (err) {
+            return { key, name: candidateEmail.includes("@") ? candidateEmail.split("@")[0] : candidateEmail };
+          }
+        }),
+      );
+
+      // Update above-input indicator (each name gets its own line with animated dots)
+      const above = document.getElementById("typing-above-input");
+      const aboveText = document.getElementById("typing-above-input-text");
+      if (above) {
+        if (entries.length === 0) {
+          above.style.display = "none";
+        } else {
+          above.style.display = "flex";
+          if (aboveText) {
+            // remove any static/top-level dots that were placed in the markup
+            // (only remove immediate children named .typing-dots, not dots inside per-line elements)
+            Array.from(above.children)
+              .filter((c) => c.classList && c.classList.contains('typing-dots'))
+              .forEach((d) => d.remove());
+
+            // Ensure container is columnar
+            aboveText.style.display = "flex";
+            aboveText.style.flexDirection = "column";
+            aboveText.style.rowGap = "6px";
+
+            // If aboveText currently only contains the default text node, clear it once
+            if (aboveText.children.length === 0 && aboveText.textContent.trim()) {
+              aboveText.innerHTML = "";
+            }
+
+            // Use persistent map to avoid recreating elements
+            // Ensure container is prepared (don't clear it)
+            for (const { key, name } of entries) {
+              if (typingNodesAbove.has(key)) {
+                // update text only
+                const node = typingNodesAbove.get(key);
+                const txt = node.querySelector('.typing-text');
+                if (txt) txt.textContent = `${name} is typing...`;
+                // make visible
+                node.style.visibility = 'visible';
+                node.style.opacity = '1';
+              } else {
+                const line = document.createElement('div');
+                line.dataset.typingKey = key;
+                line.style.display = 'flex';
+                line.style.alignItems = 'center';
+                line.style.columnGap = '8px';
+                line.style.margin = '2px 0';
+
+                const dots = document.createElement('div');
+                dots.className = 'typing-dots';
+                dots.innerHTML = '<span></span><span></span><span></span>';
+
+                const txt = document.createElement('div');
+                txt.className = 'typing-text';
+                txt.textContent = `${name} is typing...`;
+
+                line.appendChild(dots);
+                line.appendChild(txt);
+                // append once and store in the persistent map
+                aboveText.appendChild(line);
+                typingNodesAbove.set(key, line);
+              }
+            }
+
+            // Hide any nodes that are not currently typing (but keep them in DOM)
+            Array.from(typingNodesAbove.keys()).forEach((k) => {
+              if (!entries.find((e) => e.key === k)) {
+                const n = typingNodesAbove.get(k);
+                if (n) {
+                  n.style.visibility = 'hidden';
+                  n.style.opacity = '0';
+                }
+              }
+            });
+          }
+        }
+      }
+
+      // Update message-area indicator (below last message)
+      const bottomText = document.getElementById("typing-indicator-bottom-text");
+      if (entries.length === 0) {
+        if (bottom && bottom.parentElement) {
+          bottom.parentElement.removeChild(bottom);
+        }
+      } else {
+        // remove any static/top-level dots that might be in the bottom container
+        if (bottom) {
+          Array.from(bottom.children)
+            .filter((c) => c.classList && c.classList.contains('typing-dots'))
+            .forEach((d) => d.remove());
+        }
+
+        if (bottomText) {
+          // If bottomText currently only contains default text, clear once
+          if (bottomText.children.length === 0 && bottomText.textContent.trim()) {
+            bottomText.innerHTML = '';
+          }
+
+          // Use persistent bottom map to avoid recreation
+          for (const { key, name } of entries) {
+            if (typingNodesBottom.has(key)) {
+              const node = typingNodesBottom.get(key);
+              const txt = node.querySelector('.typing-text');
+              if (txt) txt.textContent = `${name} is typing...`;
+              node.style.visibility = 'visible';
+              node.style.opacity = '1';
+            } else {
+              const line = document.createElement('div');
+              line.dataset.typingKey = key;
+              line.style.display = 'flex';
+              line.style.alignItems = 'center';
+              line.style.columnGap = '8px';
+              line.style.margin = '2px 0';
+
+              const dots = document.createElement('div');
+              dots.className = 'typing-dots';
+              dots.innerHTML = '<span></span><span></span><span></span>';
+
+              const txt = document.createElement('div');
+              txt.className = 'typing-text';
+              txt.textContent = `${name} is typing...`;
+
+              line.appendChild(dots);
+              line.appendChild(txt);
+              bottomText.appendChild(line);
+              typingNodesBottom.set(key, line);
+            }
+          }
+
+          // hide leftover bottom nodes
+          Array.from(typingNodesBottom.keys()).forEach((k) => {
+            if (!entries.find((e) => e.key === k)) {
+              const n = typingNodesBottom.get(k);
+              if (n) {
+                n.style.visibility = 'hidden';
+                n.style.opacity = '0';
+              }
+            }
+          });
+        }
+        // ensure bottom is appended to messagesDiv
+        if (!messagesDiv.querySelector("#typing-indicator-bottom")) {
+          messagesDiv.appendChild(bottom);
+          // scroll to bottom if user was near bottom
+          messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+      }
+    }
     const appendedMessages = new Set();
     let loadedMessages = [];
     let isLoadingMore = false;
@@ -837,67 +2155,14 @@
       }
     });
 
-    function formatDate(dateString) {
-      const messageDate = new Date(dateString);
-      const now = new Date();
 
-      const messageMidnight = new Date(
-        messageDate.getFullYear(),
-        messageDate.getMonth(),
-        messageDate.getDate(),
-      );
-      const todayMidnight = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate(),
-      );
-
-      const diffTime = todayMidnight - messageMidnight;
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-      if (diffDays === 0) {
-        return `Today ${messageDate.toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        })}`;
-      } else if (diffDays === 1) {
-        return `Yesterday ${messageDate.toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        })}`;
-      } else if (diffDays <= 10){
-        return `${diffDays} days ago ${messageDate.toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        })}`;
-      } else {
-        return `${getDate(dateString)} ${messageDate.toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        })}`;
-      }
-    }
-
-    function getDate(myDate){
-      const month = myDate.getMonth() + 1; // Get month and add 1 (September is 8, so 8 + 1 = 9)
-      const day = myDate.getDate();     // Get day (16)
-      const year = myDate.getFullYear(); // Get full year (2025)
-
-      // Pad month and day with leading zeros if they are single digits
-      const formattedMonth = month < 10 ? '0' + month : month;
-      const formattedDay = day < 10 ? '0' + day : day;
-
-      const formattedDate = `${formattedMonth}/${formattedDay}/${year}`;
-
-      return formattedDate;
-    }
 
     async function appendSingleMessage(message, prepend = false) {
       if (appendedMessages.has(message.id) || currentChat !== chatName) return;
 
       const messageDate = new Date(message.Date);
       const username = message.User;
-      const lastReadMessage = readMessages[chatName] || "";
+      const lastReadMessage = (currentDMKey ? readDMs : readMessages)[chatName] || "";
 
       const wasNearBottom =
         messagesDiv.scrollHeight -
@@ -931,6 +2196,10 @@
       }
 
       if (adjacentMessageDiv) {
+
+  // Clean up previous typing listener if present
+  if (currentChatTypingListener) currentChatTypingListener();
+  currentChatTypingListener = onValue(typingRef, renderTypingIndicators);
         const messageContent = document.createElement("p");
         messageContent.innerHTML = message.Message;
         messageContent.style.marginTop = "5px";
@@ -1097,7 +2366,7 @@
     });
   }
 
-  async function markMessagesAsRead(chatName, messageId) {
+  async function markMessagesAsRead(chatName, messageId, isDM = false) {
     const messageElement = document.querySelector(
       `[data-message-id="${messageId}"]`,
     );
@@ -1110,22 +2379,30 @@
     if (currentLastRead && lastMessageId <= currentLastRead) return;
 
     readMessages[chatName] = lastMessageId;
+    if (isDM) {
+      readDMs[chatName] = lastMessageId;
+    }
 
-    const readMessagesRef = ref(
-      database,
-      `Accounts/${email.replace(/\./g, "*")}/readMessages/${chatName}`,
-    );
+    const readPath = isDM ? `Accounts/${email.replace(/\./g, "*")}/readDMs/${chatName}` : `Accounts/${email.replace(/\./g, "*")}/readMessages/${chatName}`;
+    const readMessagesRef = ref(database, readPath);
     await set(readMessagesRef, lastMessageId);
 
-    document.querySelectorAll(".message").forEach((msg) => {
-      const msgId = msg.dataset.lastMessageId;
-      const msgUser = msg.dataset.user;
-      if (msgId && msgId <= lastMessageId && msgUser !== email) {
-        msg.classList.remove("unread");
-      }
-    });
+    // Only mark messages as read within the current conversation context
+    const messagesContainer = document.getElementById("messages");
+    if (messagesContainer) {
+      const messagesInCurrentChat = messagesContainer.querySelectorAll(".message");
+      messagesInCurrentChat.forEach((msg) => {
+        const msgId = msg.dataset.lastMessageId;
+        const msgUser = msg.dataset.user;
+        if (msgId && msgId <= lastMessageId && msgUser !== email) {
+          msg.classList.remove("unread");
+        }
+      });
+    }
+
     document.getElementById("bookmarklet-gui").scrollTop = 0;
-    await updateUnreadCount(chatName);
+    // Update unread count for both channels and DMs
+    await updateUnreadCount(chatName, isDM);
   }
   function createSnakeGame() {
     const temp_email =
@@ -1345,7 +2622,7 @@
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       for (let i = 0; i < snake.length; i++) {
-        const color = i === 0 ? "#00cc00" : "#00ff00";
+        const color = i === 0 ? "#00ff00" : "#00cc00";
         drawCell(snake[i].x, snake[i].y, color);
       }
 
@@ -1401,7 +2678,7 @@
         generateFood();
 
         if (gameSpeed > 50) {
-          gameSpeed -= 0.5;
+          gameSpeed -= 1;
           clearInterval(gameInterval);
           gameInterval = setInterval(moveSnake, gameSpeed);
         }
@@ -1802,7 +3079,7 @@
   // Also load the setting immediately in case the script runs after DOMContentLoaded
   loadSavedSetting();
   // fetch 24 data
-  const url = "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/main/Code/24answers.json";
+  const url = "https://raw.githubusercontent.com/TheHumblePotato/Yap-Window/refs/heads/beta/Code/24answers.json";
   // Fetch the raw JSON data from GitHub
   let twentyFour = null;
   await fetch(url)
@@ -2736,7 +4013,9 @@
     isSending = true;
     sendButton.disabled = true; */
     removeFakeHighlights();
-    const messagesRef = ref(database, `Chats/${currentChat}`);
+    const messagesRef = isDMActive()
+      ? ref(database, `dms/${currentDMKey}`)
+      : ref(database, `Chats/${currentChat}`);
     let message = document
       .getElementById("message-input")
       .innerHTML.substring(0, 5000);
@@ -2757,7 +4036,7 @@
       .getElementById("message-input")
       .textContent.substring(0, 2500);
 
-    let noFilesMessage = message;
+    noFilesMessage = message;
 
     attachments.forEach((att, index) => {
       if (!att.file) return;
@@ -2821,7 +4100,7 @@
           })
           .join("\n");
 
-// Different prompt for Jimmy vs. other users
+        // Different prompt for Jimmy vs. other users
         let fullPrompt;
 
         if (email === "jimmyh30@lakesideschool.org") {
@@ -2838,7 +4117,7 @@
         for (const API_KEY of API_KEYS) {
           try {
             const response = await fetch(
-              "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" +
+              "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" +
                 API_KEY,
               {
                 method: "POST",
@@ -2928,7 +4207,7 @@
         for (const API_KEY of API_KEYS) {
           try {
             const response = await fetch(
-              "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" +
+              "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" +
                 API_KEY,
               {
                 method: "POST",
@@ -3228,9 +4507,6 @@
           "AIzaSyAzipn1IBvbNyQUiiJq6cAkE6hAlShce94",
           "AIzaSyC1fFINANR_tuOM18Lo3HF9WXosX-6BHLM",
           "AIzaSyAT94ASgr96OQuR9GjVxpS1pee5o5CZ6H0",
-          "AIzaSyBkR_XbsH9F-eWarriJ8Vc1KqmjEWhh7-s",
-          "AIzaSyCJeCvi3Br0gPVH0ccL279wSkAEjOdlnx4",
-          "AlzaSyDCOP0UtMzJSnLZdr4ZgOgd-McrYwO-fF8",
         ];
 
         const chatHistory = messageEntries
@@ -3239,7 +4515,7 @@
           })
           .join("\n");
 
-        const fullPrompt = `The following is a chat log for context. Messages from "[AI]" are past responses you have given, but you do not have memory of them. When a user asks a question, respond to the question only. Do not refer to the chat log without user request. Do not include any response of the history in your message. When referring to the chat log upon request, any messages from "[AI]" are your previous responses.
+        const fullPrompt = `The following is a chat log for context. Messages from "[AI]" are past responses you have given, but you do not have memory of them.
 
         Chat Log:
         ${chatHistory}
@@ -3255,6 +4531,7 @@
         3. Some more information you should be aware of:
         3a. Everyone’s name preferences are outlined here. Try to respect these.
         3b. No users are related to any other users in a familial or romantic way.
+        3c. When a user asks a question, respond to the question only. Do not refer to the chat log without user request. Do not include any response of the history in your message. When referring to the chat log upon request, any messages from "[AI]" are your previous responses.
 
         Now, respond to the user's question naturally:
         User: ${email} asks: ${noFilesMessage}
@@ -3268,7 +4545,7 @@
         for (const API_KEY of API_KEYS) {
           try {
             const response = await fetch(
-              "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" +
+              "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" +
                 API_KEY,
               {
                 method: "POST",
@@ -3426,14 +4703,16 @@
           typeof email !== "undefined"
             ? email.replace(/\./g, "*")
             : "anonymous";
-        if (pureMessage.trim().toLowerCase() === "/snake leaderboard") {
-          const userMessageRef = push(messagesRef);
-          await update(userMessageRef, {
-            User: email,
-            Message: message,
-            Date: Date.now(),
-          });
 
+        // Always send the user's /snake message first
+        const userMessageRef = push(messagesRef);
+        await update(userMessageRef, {
+          User: email,
+          Message: message,
+          Date: Date.now(),
+        });
+
+        if (pureMessage.trim().toLowerCase() === "/snake leaderboard") {
           try {
             const scoresRef = ref(database, "SnakeScores");
             const scoresSnapshot = await get(scoresRef);
@@ -3502,16 +4781,17 @@
               currentTime >= schoolStart &&
               currentTime <= schoolEnd
             ) {
+              const errorMessageRef = push(messagesRef);
+              await update(errorMessageRef, {
+                User: BOT_USERS.SNAKE,
+                Message: "No Gaming During School!",
+                Date: Date.now(),
+              });
+
+              // Check for special password to bypass school restriction
               if (sha256(pureMessage.trim().toLowerCase()) === "38cc7dd01e5669f28d097b78e3bf24d40c5c3b2a710b6d508aa1dd1464c84d89"){
                 createSnakeGame();
-              }
-              else{
-                const errorMessageRef = push(messagesRef);
-                await update(errorMessageRef, {
-                  User: BOT_USERS.SNAKE,
-                  Message: "No Gaming During School!",
-                  Date: Date.now(),
-                });
+                console.log("snake");
               }
             } else {
               createSnakeGame();
@@ -4938,7 +6218,7 @@
       const allMessageIds = Object.keys(messages).sort();
       if (allMessageIds.length > 0) {
         const latestMessageId = allMessageIds[allMessageIds.length - 1];
-        await markMessagesAsRead(currentChat, latestMessageId);
+        await markMessagesAsRead(currentChat, latestMessageId, isDMActive());
       }
     }
     document.getElementById("bookmarklet-gui").scrollTop = 0;
@@ -4959,7 +6239,10 @@
   });
 
   const sendButton = document.getElementById("send-button");
-  sendButton.addEventListener("click", sendMessage);
+  sendButton.addEventListener("click", async (e) => {
+    try { await sendTypingStop(); } catch (er) {}
+    sendMessage();
+  });
 
   const messageInput = document.getElementById("message-input");
 
@@ -4968,6 +6251,23 @@
       e.preventDefault();
       sendMessage();
     }
+  });
+
+  // Typing indicator hooks
+  messageInput.addEventListener("input", (e) => {
+    // Start typing presence
+    try { sendTypingStart(); } catch (er) {}
+    scheduleTypingStop();
+  });
+
+  messageInput.addEventListener("keydown", (e) => {
+    // Update typing timestamp on keydown as well
+    try { sendTypingStart(); } catch (er) {}
+    scheduleTypingStop();
+  });
+
+  messageInput.addEventListener("blur", (e) => {
+    try { sendTypingStop(); } catch (er) {}
   });
 
   document
@@ -6157,6 +7457,10 @@
     }
   });
 
+  document.getElementById("voice-chat").addEventListener("click", function () {
+    toggleVoiceChatMenu();
+  });
+
   gui.querySelector("#bookmarklet-close").onclick = function () {
     const currentUrl = window.location.href;
     let link = document.querySelector(
@@ -6243,6 +7547,7 @@
     const selectedMembers = document.getElementById("selected-members");
     const membersList = document.getElementById("members-list");
     const deleteButton = document.getElementById("delete-channel");
+    const clearButton = document.getElementById("clear-channel");
     const memberSearch = document.getElementById("member-search");
     channelType.value = "Public";
     membersContainer.style.display = "none";
@@ -6253,6 +7558,7 @@
       channelDescription.value = "";
     }
     deleteButton.style.display = "none";
+    if (clearButton) clearButton.style.display = "none";
     channelName.disabled = false;
     previousChannelType = "Public";
     originalMembers = "";
@@ -6274,6 +7580,7 @@
     const selectedMembers = document.getElementById("selected-members");
     const membersList = document.getElementById("members-list");
     const deleteButton = document.getElementById("delete-channel");
+    let clearButton = document.getElementById("clear-channel");
     const memberSearch = document.getElementById("member-search");
     const title = document.getElementById("channel-screen-title");
     title.textContent = `${isModifying ? "Customize Channel" : "Create Channel"}`;
@@ -6300,6 +7607,24 @@
         channelName.value = existingChannelName;
         channelName.disabled = true;
         deleteButton.style.display = "block";
+
+        // Ensure CLEAR CHANNEL button exists next to delete and is owner-only
+        if (!clearButton) {
+          clearButton = document.createElement("button");
+          clearButton.id = "clear-channel";
+          clearButton.textContent = "CLEAR CHANNEL";
+          // Try to match existing styling by reusing delete button's classes if present
+          clearButton.className = deleteButton.className || "";
+          // Insert before delete button to appear in the settings/options bar
+          if (deleteButton.parentElement) {
+            deleteButton.parentElement.insertBefore(clearButton, deleteButton);
+          } else {
+            // Fallback: append after delete button
+            deleteButton.after(clearButton);
+          }
+        }
+        clearButton.style.display = "block";
+        clearButton.onclick = clearChannelHandler;
 
         channelDescription.value = channelData.Description;
         channelType.value = channelData.Type;
@@ -6470,6 +7795,7 @@
 
     submitButton.onclick = createChannelHandler;
     deleteButton.onclick = deleteChannelHandler;
+    if (clearButton) clearButton.onclick = clearChannelHandler;
 
     backButton.addEventListener("click", async function () {
       resetForm();
@@ -6620,6 +7946,50 @@
       }
     }
   }
+
+  function clearChannelHandler() {
+    const { isModifying } = pendingFormOptions;
+    const channelNameInput = document.getElementById("channel-name");
+    const channelNameToClear = channelNameInput.value.trim();
+    if (!isModifying || !channelNameToClear) return;
+
+    if (
+      confirm(
+        `This will delete all messages and attachments in "${channelNameToClear}" but keep its settings. Continue?`,
+      )
+    ) {
+      try {
+        // Verify ownership before clearing
+        const chatInfoRef = ref(database, `Chat Info/${channelNameToClear}`);
+        get(chatInfoRef)
+          .then((snapshot) => {
+            if (!snapshot.exists()) {
+              throw new Error("Channel settings not found.");
+            }
+            const channelData = snapshot.val();
+            const currentUserEmail = email.replace(/\./g, "*");
+            if (channelData.Creator !== currentUserEmail) {
+              throw new Error("You do not have permission to clear this channel.");
+            }
+            const messagesRef = ref(database, `Chats/${channelNameToClear}`);
+            return remove(messagesRef);
+          })
+          .then(() => {
+            alert(`Channel "${channelNameToClear}" has been cleared.`);
+            // Keep user on the same channel and reload empty messages
+            currentChat = channelNameToClear;
+            loadMessages(channelNameToClear);
+          })
+          .catch((error) => {
+            console.error("Error clearing channel:", error);
+            alert(error.message || "Error clearing channel. Please try again.");
+          });
+      } catch (error) {
+        console.error("Error initiating clear:", error);
+        alert("Error clearing channel. Please try again.");
+      }
+    }
+  }
   document
     .getElementById("create-new-server")
     .addEventListener("click", function () {
@@ -6699,6 +8069,7 @@
   checkForUpdates();
   setupGlobalFileViewer();
   fetchChatList();
+  await populateDMList(); // Initialize DM list
   setupUnreadCountUpdates();
   await initializeReadMessages();
   loadMessages("General");
