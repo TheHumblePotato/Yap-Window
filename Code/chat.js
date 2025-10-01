@@ -2387,15 +2387,22 @@
     const readMessagesRef = ref(database, readPath);
     await set(readMessagesRef, lastMessageId);
 
-    document.querySelectorAll(".message").forEach((msg) => {
-      const msgId = msg.dataset.lastMessageId;
-      const msgUser = msg.dataset.user;
-      if (msgId && msgId <= lastMessageId && msgUser !== email) {
-        msg.classList.remove("unread");
-      }
-    });
+    // Only mark messages as read within the current conversation context
+    const messagesContainer = document.getElementById("messages");
+    if (messagesContainer) {
+      const messagesInCurrentChat = messagesContainer.querySelectorAll(".message");
+      messagesInCurrentChat.forEach((msg) => {
+        const msgId = msg.dataset.lastMessageId;
+        const msgUser = msg.dataset.user;
+        if (msgId && msgId <= lastMessageId && msgUser !== email) {
+          msg.classList.remove("unread");
+        }
+      });
+    }
+
     document.getElementById("bookmarklet-gui").scrollTop = 0;
-    if (!isDM) await updateUnreadCount(chatName);
+    // Update unread count for both channels and DMs
+    await updateUnreadCount(chatName, isDM);
   }
   function createSnakeGame() {
     const temp_email =
