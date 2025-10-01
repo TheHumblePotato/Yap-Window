@@ -2622,7 +2622,7 @@
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       for (let i = 0; i < snake.length; i++) {
-        const color = i === 0 ? "#00ff00" : "#00cc00";
+        const color = i === 0 ? "#00cc00" : "#00ff00";
         drawCell(snake[i].x, snake[i].y, color);
       }
 
