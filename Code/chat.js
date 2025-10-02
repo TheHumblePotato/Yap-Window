@@ -6205,6 +6205,11 @@
         }
       } else {
         const newMessageRef = push(messagesRef);
+        await update(newMessageRef, {
+          User: email,
+          Message: message,
+          Date: Date.now(),
+        });
         if (isDMActive()) {
           readDMs[currentDMKey] = newMessageRef.key;
           const dmElement = document.querySelector(`.dm[data-dm-key="${currentDMKey}"]`);
@@ -6217,11 +6222,6 @@
             }
           }
         }
-        await update(newMessageRef, {
-          User: email,
-          Message: message,
-          Date: Date.now(),
-        });
       }
 
       const snapshot = await get(messagesRef);
