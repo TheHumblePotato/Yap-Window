@@ -1029,6 +1029,12 @@
         if (currentRoomName) {
             currentRoomName.textContent = roomName;
         }
+
+        const muteBtn = document.getElementById('mute-btn');
+        if (muteBtn) {
+            muteBtn.textContent = isMuted ? 'Unmute' : 'Mute';
+            muteBtn.style.background = isMuted ? '#28a745' : '#ffc107';
+        }
         
         // Show delete button only for room owners
         if (deleteBtn && typeof database !== 'undefined' && currentRoomId) {
@@ -1535,29 +1541,37 @@
 
     // Add mute toggle functionality
     function setupMuteToggle() {
-        // This function would be called when integrating with the parent application
-        // For now, we'll add a simple mute/unmute function
-        window.toggleMute = function() {
+        window.toggleMute = async function() {
             if (!myId || !currentRoomId) return;
-            
+
+            // flip local flag
             isMuted = !isMuted;
-            
-            // Update local stream
+
+            // enable/disable local audio tracks
             if (localStream) {
-                localStream.getAudioTracks().forEach((track) => {
-                    track.enabled = !isMuted;
-                });
-            }
-            
-            // Update database
-            const myParticipantRef = ref(database, `rooms/${currentRoomId}/participants/${myId}/muted`);
-            set(myParticipantRef, isMuted).catch(error => {
-                console.error('Error updating mute status:', error);
+            localStream.getAudioTracks().forEach(track => {
+                track.enabled = !isMuted;
             });
-            
+            }
+
+            // write new muted state into Firebase
+            const mutedRef = ref(database, `rooms/${currentRoomId}/participants/${myId}/muted`);
+            try {
+            await set(mutedRef, isMuted);
+            } catch (err) {
+            console.error('Error updating mute status:', err);
+            }
+
+            // update button text + color
+            const btn = document.getElementById('mute-btn');
+            if (btn) {
+            btn.textContent = isMuted ? 'Unmute' : 'Mute';
+            btn.style.background = isMuted ? '#28a745' /* green */ : '#ffc107' /* yellow */;
+            }
+
             console.log(`Microphone ${isMuted ? 'muted' : 'unmuted'}`);
         };
-    }
+        }
 
     // Export functions for global access
     if (typeof window !== 'undefined') {
