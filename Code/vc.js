@@ -1106,6 +1106,18 @@
         currentVoiceRoom = null;
         isVoiceChatActive = false;
         isMuted = false;
+        const muteBtn = document.getElementById('mute-btn');
+        if (muteBtn) {
+            muteBtn.textContent = 'Mute';
+            muteBtn.style.background = '#ffc107';
+        }
+        if (myId && currentRoomId) {
+            const mutedRef = ref(database, `rooms/${currentRoomId}/participants/${myId}/muted`);
+            set(mutedRef, isMuted)
+                .catch(error => {
+                    console.error('Error unmuting on leave:', error);
+                });
+        }
         roomParticipants.clear();
         
         // Hide current room section
