@@ -166,6 +166,15 @@
                             margin-bottom: 12px;
                         "></div>
                         <div style="display: flex; gap: 8px;">
+                            <button id="mute-btn" onclick="toggleMute()" style="
+                                flex: 1;
+                                padding: 10px;
+                                background: #ffc107;
+                                color: white;
+                                border: none;
+                                border-radius: 6px;
+                                cursor: pointer;
+                            ">Mute</button>
                             <button id="leave-room-btn" onclick="leaveVoiceRoom()" style="
                                 flex: 1;
                                 padding: 10px;
@@ -185,7 +194,7 @@
                                 border-radius: 6px;
                                 cursor: pointer;
                             ">Delete Room</button>
-                        </div>
+                            </div>
                     </div>
                 </div>
             </div>
