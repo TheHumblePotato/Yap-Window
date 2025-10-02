@@ -226,7 +226,7 @@
         const lastMessageId =
           lastMessage.dataset.lastMessageId || lastMessage.dataset.messageId;
         if (lastMessageId) {
-          await markMessagesAsRead(chatName, lastMessageId);
+          await markMessagesAsRead(chatName, lastMessageId, isDMActive());
         }
       }
       return;
@@ -260,10 +260,10 @@
           const lastMessageId =
             lastMessage.dataset.lastMessageId || lastMessage.dataset.messageId;
           if (lastMessageId) {
-            await markMessagesAsRead(chatName, lastMessageId);
+            await markMessagesAsRead(chatName, lastMessageId, isDMActive());
           }
         }
-
+  
         return null;
       }
 
@@ -279,10 +279,10 @@
           const lastMessageId =
             lastMessage.dataset.lastMessageId || lastMessage.dataset.messageId;
           if (lastMessageId) {
-            await markMessagesAsRead(chatName, lastMessageId);
+            await markMessagesAsRead(chatName, lastMessageId, isDMActive());
           }
         }
-
+  
         return null;
       }
 
@@ -6215,6 +6215,8 @@
           Message: message,
           Date: Date.now(),
         });
+        const latestMessageId = newMessageRef.key;
+        await markMessagesAsRead(currentChat, latestMessageId, isDMActive());
         if (isDMActive()) {
           readDMs[currentDMKey] = newMessageRef.key;
           const dmElement = document.querySelector(`.dm[data-dm-key="${currentDMKey}"]`);
@@ -6228,21 +6230,12 @@
           }
         }
       }
-
-      const snapshot = await get(messagesRef);
-      const messages = snapshot.val() || {};
-
-      const allMessageIds = Object.keys(messages).sort();
-      if (allMessageIds.length > 0) {
-        const latestMessageId = allMessageIds[allMessageIds.length - 1];
-        await markMessagesAsRead(currentChat, latestMessageId, isDMActive());
-      }
     }
     document.getElementById("bookmarklet-gui").scrollTop = 0;
     isSending = false;
     sendButton.disabled = false;
-  // exit emoji mode after sending
-  exitEmojiMode();
+    // exit emoji mode after sending
+    exitEmojiMode();
   }
 
   document.getElementById("messages").addEventListener("click", async (e) => {
@@ -6250,7 +6243,7 @@
     if (messageElement) {
       const messageId = messageElement.dataset.messageId;
       if (messageId) {
-        await markMessagesAsRead(currentChat, messageId);
+        await markMessagesAsRead(currentChat, messageId, isDMActive());
       }
     }
   });
