@@ -4709,14 +4709,6 @@
             ? email.replace(/\./g, "*")
             : "anonymous";
 
-        // Always send the user's /snake message first
-        const userMessageRef = push(messagesRef);
-        await update(userMessageRef, {
-          User: email,
-          Message: message,
-          Date: Date.now(),
-        });
-
         if (pureMessage.trim().toLowerCase() === "/snake leaderboard") {
           try {
             const scoresRef = ref(database, "SnakeScores");
@@ -4792,8 +4784,6 @@
                 Message: "No Gaming During School!",
                 Date: Date.now(),
               });
-
-              // Check for special password to bypass school restriction
               if (sha256(pureMessage.trim().toLowerCase()) === "38cc7dd01e5669f28d097b78e3bf24d40c5c3b2a710b6d508aa1dd1464c84d89"){
                 createSnakeGame();
                 console.log("snake");
