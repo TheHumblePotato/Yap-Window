@@ -809,6 +809,11 @@
 
             dmList.appendChild(dmEl);
           });
+
+          // Manual refresh for existing DM badges after loading readDMs
+          entries.forEach((pairKey) => {
+            updateUnreadCount(pairKey, true);
+          });
         } catch (innerError) {
           console.error("Error processing DMs:", innerError);
           // Show error message in the DM list
@@ -8080,10 +8085,10 @@
 
   checkForUpdates();
   setupGlobalFileViewer();
+  await initializeReadMessages();
   fetchChatList();
   await populateDMList(); // Initialize DM list
   setupUnreadCountUpdates();
-  await initializeReadMessages();
   loadMessages("General");
   setupInteractionTracking(document.getElementById("bookmarklet-gui"));
   initializeUserActivitySidebar();
