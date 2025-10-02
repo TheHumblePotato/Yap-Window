@@ -1105,6 +1105,7 @@
         currentRoomId = null;
         currentVoiceRoom = null;
         isVoiceChatActive = false;
+        isMuted = false;
         roomParticipants.clear();
         
         // Hide current room section
