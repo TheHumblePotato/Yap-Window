@@ -600,7 +600,6 @@
                 if (room.deleted === true) {
                     /* Somebody deleted the room – force-leave immediately */
                     leaveVoiceRoom();
-                    showError('This room was deleted by the owner.');
                 }
             });
             
