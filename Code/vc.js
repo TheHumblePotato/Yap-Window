@@ -541,7 +541,8 @@
             name: roomName,
                 createdAt: Date.now(),
                 createdBy: myId,
-                password: password || null
+                password: password || null,
+                deleted: false
             };
             
             await set(newRoomRef, roomData);
@@ -592,6 +593,16 @@
                 showError('Room does not exist');
                 return;
             }
+
+            onValue(roomRef, (snap) => {
+                const room = snap.val();
+                if (!room) return;          // room node gone – already handled by child_removed
+                if (room.deleted === true) {
+                    /* Somebody deleted the room – force-leave immediately */
+                    leaveVoiceRoom();
+                    showError('This room was deleted by the owner.');
+                }
+            });
             
             const room = snapshot.val();
             
@@ -1127,62 +1138,49 @@
 
     // Kick all participants out of a room
     async function kickAllParticipants(roomId) {
-        if (!roomId) return;
-        
-        try {
-            const participantsRef = ref(database, `rooms/${roomId}/participants`);
-            const snapshot = await get(participantsRef);
-            const participants = snapshot.val();
-            
-            if (!participants) return;
-            
-            console.log(`Kicking all participants out of room: ${roomId}`);
-            
-            // Remove all participants
-            const removePromises = Object.keys(participants).map(participantId => {
-                const participantRef = ref(database, `rooms/${roomId}/participants/${participantId}`);
-                console.log(`Removing participant: ${participantId}`);
-            return remove(participantRef).catch((error) => {
-                    console.error(`Error removing participant ${participantId}:`, error);
-                return null;
-            });
-        });
+        const participantsRef = ref(database, `rooms/${roomId}/participants`);
+        const signalsRef      = ref(database, `rooms/${roomId}/signals`);
 
-            await Promise.all(removePromises);
-            console.log(`All participants have been removed from room: ${roomId}`);
-        } catch (error) {
-            console.error('Error kicking participants:', error);
-        }
+        const [pSnap, sSnap] = await Promise.all([
+            get(participantsRef),
+            get(signalsRef)
+        ]);
+
+        const removes = [];
+        if (pSnap.exists()) removes.push(remove(participantsRef));
+        if (sSnap.exists())  removes.push(remove(signalsRef));
+
+        await Promise.all(removes);
     }
 
     // Delete current room (owner only)
     async function deleteCurrentRoom() {
         if (!currentRoomId) return;
-        
-        try {
-            const roomRef = ref(database, `rooms/${currentRoomId}`);
-            const snapshot = await get(roomRef);
-            const room = snapshot.val();
-            
-            if (room && room.createdBy === myId) {
-                // First, kick all participants out of the room
-                await kickAllParticipants(currentRoomId);
-                
-            // Add a small delay to ensure all participants are removed
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
-            // Now delete the room from database
-                await remove(roomRef);
-                
-            leaveVoiceRoom();
-            loadAvailableRooms();
-            } else {
-                showError('Only room owner can delete the room');
-            }
-        } catch (error) {
-                console.error('Error deleting room:', error);
-                showError('Failed to delete room');
-            }
+
+        const roomRef  = ref(database, `rooms/${currentRoomId}`);
+        const snap     = await get(roomRef);
+        const room     = snap.val();
+
+        if (!room || room.createdBy !== myId) {
+            showError('Only the owner can delete the room');
+            return;
+        }
+
+        /* 1.  Mark the room as deleted – everybody receives this instantly */
+        await update(roomRef, { deleted: true });
+
+        /* 2.  Kick every participant (including ourselves) */
+        await kickAllParticipants(currentRoomId);
+
+        /* 3.  Wait a bit so the clients process the ‘deleted’ flag … */
+        await new Promise(r => setTimeout(r, 300));
+
+        /* 4.  Now it is safe to remove the room node completely */
+        await remove(roomRef);
+
+        /* 5.  Local clean-up (owner is also a participant) */
+        leaveVoiceRoom();
+        loadAvailableRooms();
     }
 
     // Notify participants about room deletion
