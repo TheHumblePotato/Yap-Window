@@ -6205,6 +6205,18 @@
         }
       } else {
         const newMessageRef = push(messagesRef);
+        if (isDMActive()) {
+          readDMs[currentDMKey] = newMessageRef.key;
+          const dmElement = document.querySelector(`.dm[data-dm-key="${currentDMKey}"]`);
+          if (dmElement) {
+            dmElement.setAttribute("data-unread", "0");
+            const badge = dmElement.querySelector(".unread-badge");
+            if (badge) {
+              badge.textContent = "0";
+              badge.style.display = "none";
+            }
+          }
+        }
         await update(newMessageRef, {
           User: email,
           Message: message,
