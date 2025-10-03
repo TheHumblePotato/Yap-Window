@@ -6,7 +6,7 @@ Yap-Window is a quick and easy way to yap on `Canvas` or `Google.com`
 
 To use Yap-Window, follow these steps:
 1.  Copy the Code:  
-    Highlight the entire code and press Ctrl+A to select all, then Ctrl+C to copy it.
+    Highlight the entire code and press Ctrl+C to copy it.
     
 2.  Create a Bookmark:
    	-   Open your browser and create a new bookmark.
