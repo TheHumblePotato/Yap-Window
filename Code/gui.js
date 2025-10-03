@@ -1569,10 +1569,16 @@
     </div>
     <div id="customize-account-screen" class="screen hidden">
       <h2>Final Steps</h2>
+      
       <label for="create-username">Username</label>
       <input id="create-username" type="text" placeholder="Pick a username" required="">
+      
       <label for="create-bio">Bio (optional)</label>   
-      <textarea id="create-bio" rows="8" columns="50" height="100px">I'm a yapper</textarea>
+      <textarea id="create-bio" rows="8" columns="50" style="height: 100px;">I'm a yapper</textarea>
+      
+      <label for="create-profile-pic">Profile Picture (optional)</label>
+      <input id="create-profile-pic" type="file" accept="image/*">
+      
       <button id="submit-customize">Save</button>
     </div>
     <div id="stay-login-screen" class="screen hidden">
