@@ -35,20 +35,34 @@
     var database, auth, provider, email, mostRecentVersionKey;
 
     try {
-      // Load Firebase compat SDKs (bookmarklet-friendly)
-      await Promise.all([
-        import("https://www.gstatic.com/firebasejs/11.0.2/firebase-app-compat.js"),
-        import("https://www.gstatic.com/firebasejs/11.0.2/firebase-auth-compat.js"),
-        import("https://www.gstatic.com/firebasejs/11.0.2/firebase-database-compat.js")
-      ]);
-    
-      // Initialize Firebase (compat syntax)
-      var app = firebase.initializeApp(firebaseConfig);
-    
-      database = firebase.database();
-      auth = firebase.auth();
-      provider = new firebase.auth.GoogleAuthProvider();
-    
+      var { initializeApp } = await import(
+        "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js"
+      );
+      var { getDatabase, get, ref, set, onValue, push, update, remove, child } =
+        await import(
+          "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js"
+        );
+      var {
+        getAuth,
+        GoogleAuthProvider,
+        createUserWithEmailAndPassword,
+        signInWithPopup,
+        signInWithEmailAndPassword,
+        sendEmailVerification,
+        sendSignInLinkToEmail,
+        isSignInWithEmailLink,
+        signInWithEmailLink,
+        setPersistence,
+        browserLocalPersistence,
+        onAuthStateChanged,
+      } = await import(
+        "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js"
+      );
+
+      var app = initializeApp(firebaseConfig);
+      database = getDatabase(app);
+      auth = getAuth(app);
+      provider = new GoogleAuthProvider();
     } catch (error) {
       console.error("Error initializing Firebase:", error);
       alert("Firebase initialization failed. Check the console for details.");
@@ -73,6 +87,16 @@
             firebase,
             database,
             auth,
+            app,
+            getDatabase,
+            get,
+            ref,
+            set,
+            onValue,
+            push,
+            update,
+            remove,
+            child,
             app
           };
           const chatPrimaryUrl = buildRawUrl("Code/chat.js", true);
