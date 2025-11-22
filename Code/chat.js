@@ -1,3 +1,5 @@
+import { sendMessageToAI } from "./ai.js";
+
 (async function () {
   var dayOff = false;
   var readMessages = {};
@@ -3222,17 +3224,6 @@
           Date: d,
         });
 
-        const API_KEYS = [
-          "AIzaSyDJEIVUqeVkrbtMPnBvB8QWd9VuUQQQBjg",
-          "AIzaSyB42CD-hXRnfq3eNpLWnF9at5kHePI5qgQ",
-          "AIzaSyAzipn1IBvbNyQUiiJq6cAkE6hAlShce94",
-          "AIzaSyC1fFINANR_tuOM18Lo3HF9WXosX-6BHLM",
-          "AIzaSyAT94ASgr96OQuR9GjVxpS1pee5o5CZ6H0",
-          "AIzaSyBkR_XbsH9F-eWarriJ8Vc1KqmjEWhh7-s",
-          "AIzaSyCJeCvi3Br0gPVH0ccL279wSkAEjOdlnx4",
-          "AlzaSyDCOP0UtMzJSnLZdr4ZgOgd-McrYwO-fF8",
-        ];
-
         const chatHistory = messageEntries
           .map(([id, msg]) => {
             return `${msg.User}: ${msg.Message.substring(0, 500)}`;
@@ -3262,40 +3253,24 @@
         Make sure to follow all the instructions while answering questions.
         `;
 
-        let aiReply = null;
-        let successfulRequest = false;
-
-        for (const API_KEY of API_KEYS) {
-          try {
-            const response = await fetch(
-              "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" +
-                API_KEY,
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
-                }),
-              },
-            ).then((res) => res.json());
-
-            const responseText =
-              response.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (responseText && responseText.trim() !== "") {
-              aiReply = responseText;
-              successfulRequest = true;
-              break;
-            }
-          } catch (error) {
-            console.error(`Error with API key ${API_KEY}:`, error);
+        // call your firebase cloud function
+        const response = await fetch(
+          "https://us-central1-noise-75cba.cloudfunctions.net/aiMessage", 
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                email: email,
+                chatHistory: chatHistory,
+                prompt: fullPrompt,
+                question: question,
+              }),
           }
-        }
-
-        if (!successfulRequest) {
-          aiReply =
-            "Sorry, AI assistance is temporarily unavailable. Please try again later.";
-        }
-
+        );
+        
+        const data = await response.json();
+        const aiReply = data.reply || "AI unavailable right now, try again later.";
+        
         const aiMessageRef = push(messagesRef);
         await update(aiMessageRef, {
           User: "[AI]",
