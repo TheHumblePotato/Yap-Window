@@ -84,7 +84,6 @@
         const gui = document.getElementById("bookmarklet-gui");
         async function openChatScreen() {
           const firebaseStuff = {
-            firebase,
             database,
             auth,
             app,
